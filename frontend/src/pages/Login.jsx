@@ -1,6 +1,7 @@
 import { useState } from "react";
 import styled from "styled-components";
 import { api } from "../api/http";
+import logo from "./logo.png";
 
 const Container = styled.div`
   /* make background full-bleed so it isn't affected by #root padding/margins */
@@ -12,7 +13,31 @@ const Container = styled.div`
   background: radial-gradient(circle at top left, #111 0%, #000 80%);
   color: #f5f5f5;
   font-family: "Inter", sans-serif;
+  z-index: 0;
+
+  /* watermark pattern using the logo */
+  &::after {
+    content: '';
+    position: absolute;
+    /* expand beyond the viewport so the rotated pattern doesn't get clipped at corners */
+    top: -18%;
+    left: -18%;
+    right: -18%;
+    bottom: -18%;
+    background-image: url(${logo});
+    background-repeat: repeat;
+    background-position: center;
+    background-size: 160px;
+    opacity: 0.08;
+    /* show original logo colors */
+    filter: blur(0.15px);
+    transform: rotate(-12deg) scale(1.02);
+    pointer-events: none;
+    z-index: 0;
+  }
 `;
+
+
 
 const Card = styled.div`
   background: #0b0b0b;
@@ -21,10 +46,11 @@ const Card = styled.div`
   padding: 40px 32px;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 0 25px rgba(179, 107, 0, 0.15);
+  box-shadow: 0 0 25px rgba(168,137,42,0.15);
   text-align: center;
   position: relative;
-  --glow-color: #eead2d;
+  z-index: 2;
+  --glow-color: #A8892A;
   --glow-size: 18px;
 
   /* animated outline using a pseudo element */
@@ -36,7 +62,7 @@ const Card = styled.div`
     right: -6px;
     bottom: -6px;
     border-radius: 22px;
-  background: linear-gradient(90deg, rgba(179,107,0,0.08), rgba(255,255,255,0.02), rgba(179,107,0,0.08));
+  background: linear-gradient(90deg, rgba(168,137,42,0.08), rgba(255,255,255,0.02), rgba(168,137,42,0.08));
   box-shadow: 0 0 var(--glow-size) var(--glow-color);
     opacity: 0.85;
     z-index: -1;
@@ -49,9 +75,9 @@ const Card = styled.div`
 
 const pulseKeyframes = `
 @keyframes pulseGlow {
-  0% { transform: scale(0.98); box-shadow: 0 0 6px rgba(179,107,0,0.08); opacity: 0.7; }
-  50% { transform: scale(1.02); box-shadow: 0 0 22px rgba(179,107,0,0.28); opacity: 1; }
-  100% { transform: scale(0.98); box-shadow: 0 0 6px rgba(179,107,0,0.08); opacity: 0.7; }
+  0% { transform: scale(0.98); box-shadow: 0 0 6px rgba(168,137,42,0.08); opacity: 0.7; }
+  50% { transform: scale(1.02); box-shadow: 0 0 22px rgba(168,137,42,0.28); opacity: 1; }
+  100% { transform: scale(0.98); box-shadow: 0 0 6px rgba(168,137,42,0.08); opacity: 0.7; }
 }
 `;
 
@@ -64,7 +90,7 @@ if (typeof document !== 'undefined') {
 }
 
 const Title = styled.h1`
-  color: #B8860B;
+  color: #A8892A;
   font-size: 1.8rem;
   margin-bottom: 10px;
   letter-spacing: 1px;
@@ -89,7 +115,7 @@ const Input = styled.input`
   transition: all 0.2s ease;
 
   &:focus {
-    border-color: #B8860B;
+    border-color: #A8892A;
     outline: none;
   }
 `;
@@ -98,7 +124,7 @@ const Button = styled.button`
   width: 90%;
   max-width: 320px;
   padding: 12px 14px;
-  background: linear-gradient(180deg, #B8860B 0%, #B8860B 100%);
+  background: linear-gradient(180deg, #BFA032 0%, #A8892A 100%);
   color: #0b0b0b;
   border: none;
   border-radius: 12px;
@@ -111,7 +137,7 @@ const Button = styled.button`
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 28px rgba(179,107,0,0.18), inset 0 -2px 0 rgba(0,0,0,0.14);
+  box-shadow: 0 10px 28px rgba(168,137,42,0.18), inset 0 -2px 0 rgba(0,0,0,0.14);
     filter: saturate(1.05) brightness(1.02);
   }
 
@@ -122,7 +148,7 @@ const Button = styled.button`
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 6px rgba(179,107,0,0.12), 0 8px 22px rgba(0,0,0,0.4);
+      box-shadow: 0 0 0 6px rgba(168,137,42,0.12), 0 8px 22px rgba(0,0,0,0.4);
   }
 `;
 
