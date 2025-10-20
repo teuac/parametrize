@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    container_name: parametrizze_db
+    restart: always
+    environment:
+      POSTGRES_USER: parametrizze_user
+      POSTGRES_PASSWORD: parametrizze_pass
+      POSTGRES_DB: parametrizze_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

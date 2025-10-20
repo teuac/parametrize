@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  user
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  name       String
+  email      String   @unique
+  password   String
+  role       Role     @default(user)
+  createdAt  DateTime @default(now())
+}
+
+model Ncm {
+  id        Int           @id @default(autoincrement())
+  codigo    String        @unique
+  descricao String
+  classTrib ClassTrib[]
+  util      Util[]
+}
+
+model ClassTrib {
+  id        Int    @id @default(autoincrement())
+  ncmId     Int
+  cst       String @db.VarChar(10)
+  aliquota  Decimal @db.Decimal(5,2)
+  descricao String
+
+  ncm Ncm @relation(fields: [ncmId], references: [id], onDelete: Cascade)
+}
+
+model Util {
+  id        Int    @id @default(autoincrement())
+  ncmId     Int
+  aplicacao String
+
+  ncm Ncm @relation(fields: [ncmId], references: [id], onDelete: Cascade)
+}
