@@ -22,27 +22,28 @@ model User {
 }
 
 model Ncm {
-  id        Int           @id @default(autoincrement())
-  codigo    String        @unique
-  descricao String
-  classTrib ClassTrib[]
-  util      Util[]
+  id          Int         @id @default(autoincrement())
+  codigo      String
+  descricao   String
+  cClasstrib  Int
+
+  classTrib   ClassTrib   @relation(fields: [cClasstrib], references: [codigoClassTrib], onDelete: SetNull)
+
+  @@unique([codigo, cClasstrib]) // 👈 chave composta única
 }
 
 model ClassTrib {
-  id        Int    @id @default(autoincrement())
-  ncmId     Int
-  cst       String @db.VarChar(10)
-  aliquota  Decimal @db.Decimal(5,2)
-  descricao String
+  id                       Int      @id @default(autoincrement())
+  codigoClassTrib          Int      @unique // corresponde ao cClasstrib da aba NCM
+  cstIbsCbs                String?
+  descricaoCstIbsCbs       String?
+  descricaoClassTrib       String?
+  lcRedacao                String?
+  lc214_25                 String?
+  pRedIBS                  Decimal? @db.Decimal(5,2)
+  pRedCBS                  Decimal? @db.Decimal(5,2)
+  link                     String?
 
-  ncm Ncm @relation(fields: [ncmId], references: [id], onDelete: Cascade)
+  ncm                      Ncm[]
 }
 
-model Util {
-  id        Int    @id @default(autoincrement())
-  ncmId     Int
-  aplicacao String
-
-  ncm Ncm @relation(fields: [ncmId], references: [id], onDelete: Cascade)
-}

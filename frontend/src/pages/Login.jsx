@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styled from "styled-components";
 import { api } from "../api/http";
-import logo from "./logo.png";
+import Logo from '../components/Logo'
+import { createGlobalStyle } from 'styled-components'
 
 const Container = styled.div`
   /* make background full-bleed so it isn't affected by #root padding/margins */
@@ -15,26 +16,26 @@ const Container = styled.div`
   font-family: "Inter", sans-serif;
   z-index: 0;
 
-  /* watermark pattern using the logo */
+  /* no background logo (removed) */
   &::after {
     content: '';
     position: absolute;
-    /* expand beyond the viewport so the rotated pattern doesn't get clipped at corners */
-    top: -18%;
-    left: -18%;
-    right: -18%;
-    bottom: -18%;
-    background-image: url(${logo});
-    background-repeat: repeat;
-    background-position: center;
-    background-size: 160px;
-    opacity: 0.08;
-    /* show original logo colors */
-    filter: blur(0.15px);
-    transform: rotate(-12deg) scale(1.02);
+    inset: 0;
+    background-color: transparent;
     pointer-events: none;
     z-index: 0;
   }
+`;
+
+const LogoTop = styled.div`
+  position: absolute;
+  top: 118px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  width: 100%;
 `;
 
 
@@ -43,17 +44,19 @@ const Card = styled.div`
   background: #0b0b0b;
   border: 1px solid #222;
   border-radius: 20px;
-  padding: 40px 32px;
+  /* reduce top padding only so the top area is smaller */
+  padding: 20px 32px 40px;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 0 25px rgba(168,137,42,0.15);
+  /* subtle drop shadow for depth; main glow moved to ::before border only */
+  box-shadow: 0 8px 22px rgba(0,0,0,0.6);
   text-align: center;
   position: relative;
   z-index: 2;
   --glow-color: #A8892A;
   --glow-size: 18px;
 
-  /* animated outline using a pseudo element */
+  /* animated border glow (subtle) */
   &::before {
     content: '';
     position: absolute;
@@ -62,22 +65,22 @@ const Card = styled.div`
     right: -6px;
     bottom: -6px;
     border-radius: 22px;
-  background: linear-gradient(90deg, rgba(168,137,42,0.08), rgba(255,255,255,0.02), rgba(168,137,42,0.08));
-  box-shadow: 0 0 var(--glow-size) var(--glow-color);
-    opacity: 0.85;
+    background: transparent;
+    /* small, focused glow on the border */
+    box-shadow: 0 0 6px rgba(168,137,42,0.08);
     z-index: -1;
-    filter: blur(6px);
+    filter: none;
     transform: translateZ(0);
-    animation: pulseGlow 3.5s ease-in-out infinite;
+    animation: pulseGlow 4s ease-in-out infinite;
     pointer-events: none;
   }
 `;
 
 const pulseKeyframes = `
 @keyframes pulseGlow {
-  0% { transform: scale(0.98); box-shadow: 0 0 6px rgba(168,137,42,0.08); opacity: 0.7; }
-  50% { transform: scale(1.02); box-shadow: 0 0 22px rgba(168,137,42,0.28); opacity: 1; }
-  100% { transform: scale(0.98); box-shadow: 0 0 6px rgba(168,137,42,0.08); opacity: 0.7; }
+  0% { transform: scale(1); box-shadow: 0 0 4px rgba(168,137,42,0.06); }
+  50% { transform: scale(1.01); box-shadow: 0 0 12px rgba(168,137,42,0.14); }
+  100% { transform: scale(1); box-shadow: 0 0 4px rgba(168,137,42,0.06); }
 }
 `;
 
@@ -89,12 +92,29 @@ if (typeof document !== 'undefined') {
   document.head.appendChild(styleEl);
 }
 
+const LoginOverrides = createGlobalStyle`
+  /* when login is active we remove #root padding/max-width so the background can be full-bleed */
+  html.login-full-bleed,
+  html.login-full-bleed body {
+    /* match the Login Container background to avoid any white edges from system/light-mode defaults */
+    background: radial-gradient(circle at top left, #111 0%, #000 80%) !important;
+    min-height: 100vh;
+  }
+  html.login-full-bleed #root {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+`;
+
 const Title = styled.h1`
   color: #A8892A;
   font-size: 1.8rem;
   margin-bottom: 10px;
   letter-spacing: 1px;
 `;
+
 
 const Subtitle = styled.p`
   font-size: 0.95rem;
@@ -167,6 +187,10 @@ const ErrorMsg = styled.p`
 `;
 
 export default function Login() {
+  useEffect(() => {
+    document.documentElement.classList.add('login-full-bleed');
+    return () => document.documentElement.classList.remove('login-full-bleed');
+  }, []);
   const [email, setEmail] = useState("admin@parametrizze.com");
   const [password, setPassword] = useState("admin123");
   const [err, setErr] = useState("");
@@ -185,8 +209,12 @@ export default function Login() {
 
   return (
     <Container>
+      <LoginOverrides />
+      <LogoTop>
+        <Logo size="200px" />
+      </LogoTop>
       <Card>
-        <Title>Parametrize</Title>
+        <Title>Bem Vindo</Title>
         <Subtitle>Entre com suas credenciais</Subtitle>
         <Form onSubmit={submit}>
           <Input

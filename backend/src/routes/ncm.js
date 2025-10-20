@@ -6,17 +6,44 @@ export const ncmRouter = Router();
 
 ncmRouter.use(ensureAuth);
 
-ncmRouter.get('/', async (req, res) => {
-  const { q } = req.query; // busca por código ou descrição
-  const where = q ? {
-    OR: [
-      { codigo: { contains: String(q), mode: 'insensitive' } },
-      { descricao: { contains: String(q), mode: 'insensitive' } },
-    ],
-  } : {};
-  const items = await prisma.ncm.findMany({ where, take: 50, orderBy: { codigo: 'asc' } });
-  res.json(items);
+ncmRouter.get("/", async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) {
+      const items = await prisma.ncm.findMany({
+        include: { classTrib: true },
+        take: 50,
+        orderBy: { codigo: "asc" },
+      });
+      return res.json(items);
+    }
+
+    const query = String(q).replace(/\./g, ""); // remove pontos da busca
+
+    const items = await prisma.$queryRaw`
+      SELECT n.*, json_build_object(
+        'codigoClassTrib', c."codigoClassTrib",
+        'cstIbsCbs', c."cstIbsCbs",
+        'descricaoCstIbsCbs', c."descricaoCstIbsCbs",
+        'descricaoClassTrib', c."descricaoClassTrib",
+        'pRedIBS', c."pRedIBS",
+        'pRedCBS', c."pRedCBS"
+      ) as "classTrib"
+      FROM "Ncm" n
+      LEFT JOIN "ClassTrib" c ON n."cClasstrib" = c."codigoClassTrib"
+      WHERE REPLACE(n."codigo", '.', '') ILIKE ${`%${query}%`}
+         OR n."descricao" ILIKE ${`%${q}%`}
+      ORDER BY n."codigo" ASC
+      LIMIT 50;
+    `;
+
+    res.json(items);
+  } catch (err) {
+    console.error("❌ Erro ao buscar NCM:", err);
+    res.status(500).json({ error: "Erro ao buscar NCMs" });
+  }
 });
+
 
 // admin somente
 import { ensureAdmin } from '../middlewares/auth.js';
