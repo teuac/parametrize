@@ -208,6 +208,36 @@ const AliquotaBox = styled.div`
     color: #a8892a;
   }
 `;
+const Footer = styled.div`
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #222;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+
+  button {
+    background: #a8892a;
+    color: #0b0b0b;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+
+    &:hover {
+      background: #b69733;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+`;
+
 export default function Dashboard() {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -258,6 +288,44 @@ setItems(unique);
         : [...prev, codigo]
     );
   }
+
+  async function gerarRelatorio(formato) {
+  if (pinnedCodes.length === 0) {
+    alert("Nenhum NCM fixado para gerar relatório.");
+    return;
+  }
+
+  const params = new URLSearchParams({
+    codigos: pinnedCodes.join(","),
+    formato,
+  });
+
+  const url = `${api.defaults.baseURL}/relatorio?${params.toString()}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
+    });
+
+    if (!response.ok) throw new Error("Erro ao gerar relatório");
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = `relatorio_ncm.${formato}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (err) {
+    console.error(err);
+    alert("Erro ao gerar relatório");
+  }
+}
+
 
   // Agrupa por código NCM
   const groupedItems = items.reduce((acc, item) => {
@@ -389,7 +457,17 @@ setItems(unique);
         ))}
       </Grid>
     </NcmGroup>
+
+    
   ))}
+
+  {pinnedCodes.length > 0 && (
+  <Footer>
+    <button onClick={() => gerarRelatorio("pdf")}>📄 Gerar PDF</button>
+    <button onClick={() => gerarRelatorio("xlsx")}>📊 Gerar Excel</button>
+    <button onClick={() => gerarRelatorio("txt")}>📜 Gerar TXT</button>
+  </Footer>
+)}
 
         </Content>
       </Layout>
