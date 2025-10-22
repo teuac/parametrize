@@ -122,9 +122,34 @@ const NcmHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 
   &:hover {
     background: ${({ pinned }) => (pinned ? "#b69733" : "#2a2a2a")};
+  }
+
+  div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    strong {
+      color: ${({ pinned }) => (pinned ? "#0b0b0b" : "#a8892a")};
+      font-size: 1rem;
+    }
+
+    .desc {
+      font-weight: 400;
+      color: ${({ pinned }) => (pinned ? "#222" : "#ddd")};
+      font-size: 0.9rem;
+    }
+  }
+
+  span:last-child {
+    font-size: 0.85rem;
+    opacity: 0.9;
   }
 `;
 
@@ -163,7 +188,26 @@ const InfoMessage = styled.p`
   font-size: 0.95rem;
   margin-bottom: 20px;
 `;
+const AliquotaBox = styled.div`
+  background: rgba(168, 137, 42, 0.1); /* leve dourado translúcido */
+  border: 1px solid #a8892a44;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  
+  p {
+    margin: 0;
+  }
 
+  strong {
+    color: #a8892a;
+  }
+`;
 export default function Dashboard() {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -192,7 +236,16 @@ export default function Dashboard() {
       const { data } = await api.get("/ncm", { params: { q: code } });
       // mantém os itens já travados
       const pinnedItems = items.filter((i) => pinnedCodes.includes(i.codigo));
-      setItems([...pinnedItems, ...data]);
+  const combined = [...pinnedItems, ...data];
+
+// 🔹 Elimina duplicados com base em código + cClasstrib
+  const unique = Array.from(
+    new Map(
+      combined.map((i) => [`${i.codigo}-${i.cClasstrib}`, i])
+   ).values()
+  );
+
+setItems(unique);
     } catch (err) {
       console.error("Erro ao buscar NCM:", err);
     }
@@ -233,7 +286,7 @@ export default function Dashboard() {
               }}
             />
             <button onClick={() => searchNcm(query)}>
-              <Search />
+              <Search /> <strong>Buscar</strong>
             </button>
           </SearchBar>
 
@@ -258,50 +311,86 @@ export default function Dashboard() {
           )}
 
           {/* Renderiza grupos */}
-          {Object.entries(groupedItems).map(([codigo, group]) => (
-            <NcmGroup key={codigo}>
-              <NcmHeader
-                pinned={pinnedCodes.includes(codigo)}
-                onClick={() => togglePin(codigo)}
-              >
-                <span>{codigo}</span>
-                <span>
-                  {pinnedCodes.includes(codigo)
-                    ? "📌 Fixado"
-                    : "📍 Clique para fixar"}
-                </span>
-              </NcmHeader>
+          {Object.entries(groupedItems)
+  // 🔹 Ordena: não fixados primeiro, fixados depois
+  .sort(([a], [b]) => {
+    const aPinned = pinnedCodes.includes(a);
+    const bPinned = pinnedCodes.includes(b);
+    if (aPinned === bPinned) return 0;
+    return aPinned ? 1 : -1; // fixados vão pro fim
+  })
+  .map(([codigo, group]) => (
+    <NcmGroup key={codigo}>
+     <NcmHeader
+  pinned={pinnedCodes.includes(codigo)}
+  onClick={() => togglePin(codigo)}
+>
+  <div>
+    <strong>{codigo}</strong>{" "}
+    <span className="desc">{group[0].descricao}</span>
+  </div>
+  <span>
+    {pinnedCodes.includes(codigo)
+      ? "📌 Fixado"
+      : "📍 Clique para fixar"}
+  </span>
+</NcmHeader>
 
-              <Grid>
-                {group.map((item) => (
-                  <Card key={`${item.codigo}-${item.cClasstrib}`}>
-                    {item.classTrib && (
-                      <Section>
-                        <p>
-                          <strong>Código:</strong>{" "}
-                          {item.classTrib.codigoClassTrib
-                            ?.toString()
-                            .padStart(6, "0")}
-                        </p>
-                        <p>
-                          <strong>CST:</strong>{" "}
-                          {item.classTrib.cstIbsCbs || "—"}
-                        </p>
-                        <p>
-                          <strong>Descrição:</strong>{" "}
-                          {item.classTrib.descricaoClassTrib || "—"}
-                        </p>
-                        <p>
-                          <strong>Redução IBS/CBS:</strong>{" "}
-                          {item.classTrib.pRedIBS}% / {item.classTrib.pRedCBS}%
-                        </p>
-                      </Section>
-                    )}
-                  </Card>
-                ))}
-              </Grid>
-            </NcmGroup>
-          ))}
+      <Grid>
+        {group.map((item) => (
+          <Card key={`${item.codigo}-${item.cClasstrib}`}>
+            {item.classTrib && (
+             <Section>
+
+              <p>
+    <strong>CST:</strong>{" "}
+    {item.classTrib.cstIbsCbs || "—"}
+  </p>
+  <p>
+    <strong>cClasTrib:</strong>{" "}
+    {item.classTrib.codigoClassTrib?.toString().padStart(6, "0")}
+  </p>
+  
+  <p>
+    <strong>Descrição:</strong>{" "}
+    {item.classTrib.descricaoClassTrib || "—"}
+  </p>
+  <p>
+    <strong>Redução IBS/CBS:</strong>{" "}
+    {item.classTrib.pRedIBS}% / {item.classTrib.pRedCBS}%
+  </p>
+
+  {/* === NOVOS CAMPOS CALCULADOS === */}
+  <AliquotaBox>
+  {(() => {
+    const pRedIBS = parseFloat(item.classTrib.pRedIBS) || 0;
+    const pRedCBS = parseFloat(item.classTrib.pRedCBS) || 0;
+
+    const aliquotaIBS = 0.10 * (1 - pRedIBS / 100);
+    const aliquotaCBS = 0.90 * (1 - pRedCBS / 100);
+
+    return (
+      <>
+        <p>
+          <strong>Alíquota IBS:</strong>{" "}
+          {parseFloat(aliquotaIBS.toFixed(4))+"%"}
+        </p>
+        <p>
+          <strong>Alíquota CBS:</strong>{" "}
+          {parseFloat(aliquotaCBS.toFixed(4))+"%"}
+        </p>
+      </>
+    );
+  })()}
+</AliquotaBox>
+</Section>
+            )}
+          </Card>
+        ))}
+      </Grid>
+    </NcmGroup>
+  ))}
+
         </Content>
       </Layout>
     </>
