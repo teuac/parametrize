@@ -46,6 +46,13 @@ if (!ncmList.length) {
       return `${trimmed}%`;
     };
 
+    // helper: format classTrib code to 6 digits with leading zeros
+    const padClas = (v) => {
+      if (v === null || v === undefined || v === "") return "";
+      const s = String(v);
+      return s.padStart(6, "0");
+    };
+
     // ===================================================================
     // 🧾 === GERAÇÃO DO PDF ===
     // ===================================================================
@@ -85,23 +92,23 @@ if (!ncmList.length) {
 
   addWatermark();
 
-  // === Cabeçalho escuro com logo maior e título centralizado ===
+  // === Cabeçalho: logo maior, sem fundo, título centralizado ===
   doc.save();
-  // barra preta no topo
-  doc.rect(0, 0, doc.page.width, 90).fill('#0b0b0b');
   // logo aumentada no canto (pintada com a cor da empresa quando possível)
-  if (fs.existsSync(logoPath)) {
+    if (fs.existsSync(logoPath)) {
     try {
       doc.fillColor('#A8892A');
-      // aumentar a largura para destacar a marca
-      doc.image(logoPath, 40, 10, { width: 100, mask: true });
+      // subir a logo reduzindo o Y (mais próximo ao topo)
+      // moved from y=0 to y=-10 for a higher position
+      doc.image(logoPath, 40, -10, { width: 100, mask: true });
     } catch (err) {
       // fallback to plain image
-      try { doc.image(logoPath, 40, 10, { width: 100 }); } catch (e) {}
+      try { doc.image(logoPath, 40, -10, { width: 100 }); } catch (e) {}
     }
   }
-  // título centralizado na barra (remove o nome 'PARAMETRIZE')
-  doc.fillColor('#A8892A').font('Helvetica-Bold').fontSize(20).text('Relatório de NCMs', 0, 30, { align: 'center' });
+  // título centralizado (removido o texto 'PARAMETRIZE' e sem fundo preto)
+  // descer o título um pouco para evitar sobreposição com a logo
+  doc.fillColor('#A8892A').font('Helvetica-Bold').fontSize(20).text('Classificação Tributária', 0, 30, { align: 'center' });
   doc.restore();
 
   doc.moveDown(1.5);
@@ -157,14 +164,26 @@ if (!ncmList.length) {
       const pRedCBS = parseFloat(c.pRedCBS) || 0;
       const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
       const aliqCBSVal = 0.90 * (1 - pRedCBS / 100);
-      const aliqIBS = formatAliq(aliqIBSVal * 100, 4); // convert to percent
-      const aliqCBS = formatAliq(aliqCBSVal * 100, 4);
+      // if CST is one of these codes, aliquotas must be 0%
+      const zeroCsts = new Set(["400", "410", "510", "550", "620"]);
+      const cstCode = String(c.cstIbsCbs || "").trim();
+      let aliqIBS, aliqCBS;
+      if (zeroCsts.has(cstCode)) {
+        aliqIBS = "0%";
+        aliqCBS = "0%";
+      } else {
+        // append '%' to the numeric aliq values (do not convert the value)
+        // show with 2 decimal places as requested
+        aliqIBS = aliqIBSVal.toFixed(2) + "%";
+        aliqCBS = aliqCBSVal.toFixed(2) + "%";
+      }
 
       // measure heights for each cell's text to allow wrapping and dynamic row height
       const paddingV = 10; // vertical padding inside cell (top+bottom)
       const hCodigo = doc.heightOfString(String(ncm.codigo || ""), { width: colWidths[0] - 8 });
       const hDesc = doc.heightOfString(String(ncm.descricao || ""), { width: colWidths[1] - 8 });
-      const hClas = doc.heightOfString(String(c.cClasTrib || ""), { width: colWidths[2] - 8 });
+  const formattedClas = padClas(c.codigoClassTrib);
+  const hClas = doc.heightOfString(String(formattedClas || ""), { width: colWidths[2] - 8 });
       const hCst = doc.heightOfString(String(c.cstIbsCbs || "-"), { width: colWidths[3] - 8 });
       const hAliq1 = doc.heightOfString(String(aliqIBS), { width: colWidths[4] - 8 });
       const hAliq2 = doc.heightOfString(String(aliqCBS), { width: colWidths[5] - 8 });
@@ -189,7 +208,7 @@ if (!ncmList.length) {
       x = startX;
       drawCell(ncm.codigo, x, y, colWidths[0], rowHeight);
       drawCell(String(ncm.descricao || ""), (x += colWidths[0]), y, colWidths[1], rowHeight);
-      drawCell(String(c.cClasTrib || ""), (x += colWidths[1]), y, colWidths[2], rowHeight);
+  drawCell(String(formattedClas || ""), (x += colWidths[1]), y, colWidths[2], rowHeight);
       drawCell(c.cstIbsCbs || "-", (x += colWidths[2]), y, colWidths[3], rowHeight, "center");
       drawCell(aliqIBS, (x += colWidths[3]), y, colWidths[4], rowHeight, "center");
       drawCell(aliqCBS, (x += colWidths[4]), y, colWidths[5], rowHeight, "center");
@@ -243,16 +262,20 @@ if (!ncmList.length) {
           const pRedCBS = parseFloat(c.pRedCBS) || 0;
           const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
           const aliqCBSVal = 0.90 * (1 - pRedCBS / 100);
+          const zeroCsts = new Set(["400", "410", "510", "550", "620"]);
+          const cstCode = String(c.cstIbsCbs || "").trim();
+          const aliqIBSStr = zeroCsts.has(cstCode) ? "0%" : aliqIBSVal.toFixed(2) + "%";
+          const aliqCBSStr = zeroCsts.has(cstCode) ? "0%" : aliqCBSVal.toFixed(2) + "%";
 
           sheet.addRow({
             codigo: ncm.codigo,
             descricao: ncm.descricao,
-            cClasTrib: c.cClasTrib,
+            cClasTrib: padClas(c.codigoClassTrib),
             cst: c.cstIbsCbs,
             pRedIBS: `${pRedIBS}%`,
             pRedCBS: `${pRedCBS}%`,
-            aliqIBS: formatAliq(aliqIBSVal * 100, 4),
-            aliqCBS: formatAliq(aliqCBSVal * 100, 4),
+            aliqIBS: aliqIBSStr,
+            aliqCBS: aliqCBSStr,
           });
         });
       });
@@ -279,8 +302,12 @@ if (!ncmList.length) {
           const pRedCBS = parseFloat(c.pRedCBS) || 0;
           const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
           const aliqCBSVal = 0.90 * (1 - pRedCBS / 100);
+          const zeroCsts = new Set(["400", "410", "510", "550", "620"]);
+          const cstCode = String(c.cstIbsCbs || "").trim();
+          const aliqIBSTxt = zeroCsts.has(cstCode) ? "0%" : aliqIBSVal.toFixed(2) + "%";
+          const aliqCBSTxt = zeroCsts.has(cstCode) ? "0%" : aliqCBSVal.toFixed(2) + "%";
 
-          txt += `${ncm.codigo} | ${ncm.descricao.slice(0, 40)} | ${c.cClasTrib || ""} | ${c.cstIbsCbs || "-"} | ${formatAliq(aliqIBSVal * 100, 4)} | ${formatAliq(aliqCBSVal * 100, 4)}\n`;
+          txt += `${ncm.codigo} | ${ncm.descricao.slice(0, 40)} | ${padClas(c.codigoClassTrib) || ""} | ${c.cstIbsCbs || "-"} | ${aliqIBSTxt} | ${aliqCBSTxt}\n`;
         });
       });
 
