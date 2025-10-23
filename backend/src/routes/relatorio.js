@@ -38,6 +38,14 @@ if (!ncmList.length) {
       return res.status(404).json({ error: "Nenhum NCM encontrado." });
     }
 
+    // helper: format aliquotas (trim trailing zeros and append %)
+    const formatAliq = (val, decimals = 4) => {
+      const num = Number(val) || 0;
+      const fixed = num.toFixed(decimals);
+      const trimmed = fixed.replace(/\.?0+$/, "");
+      return `${trimmed}%`;
+    };
+
     // ===================================================================
     // 🧾 === GERAÇÃO DO PDF ===
     // ===================================================================
@@ -102,12 +110,26 @@ if (!ncmList.length) {
   // === Tabela ===
   const startX = 40;
   let y = doc.y + 10;
-  const colWidths = [70, 220, 50, 70, 70];
+  // compute available width between left startX and right margin (40)
+  const availableWidth = doc.page.width - startX - 40; // page width minus left and right margins
+  // keep some sensible minimums for small pages
+  const minCodigo = 70;
+  const minCst = 50;
+  const minAliq = 70;
+  // description gets the remaining space
+  const colWidths = [
+    minCodigo,
+    Math.max(150, availableWidth - (minCodigo + minCst + minAliq + minAliq)),
+    minCst,
+    minAliq,
+    minAliq,
+  ];
   const headers = ["Código", "Descrição", "CST", "Aliq IBS", "Aliq CBS"];
 
   const drawCell = (text, x, y, width, height, align = "left") => {
     doc.rect(x, y, width, height).strokeColor("#999").lineWidth(0.3).stroke();
-    doc.text(text, x + 4, y + 5, { width: width - 8, align });
+    // ensure text is drawn inside the cell with small padding
+    doc.text(text || "", x + 4, y + 5, { width: width - 8, align });
   };
 
   // Cabeçalho da tabela
@@ -128,20 +150,23 @@ if (!ncmList.length) {
 
   const pRedIBS = parseFloat(c.pRedIBS) || 0;
   const pRedCBS = parseFloat(c.pRedCBS) || 0;
-  const aliqIBS = (0.10 * (1 - pRedIBS / 100)).toFixed(4);
-  const aliqCBS = (0.90 * (1 - pRedCBS / 100)).toFixed(4);
+  const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
+  const aliqCBSVal = 0.90 * (1 - pRedCBS / 100);
+  const aliqIBS = formatAliq(aliqIBSVal * 100, 4); // convert to percent
+  const aliqCBS = formatAliq(aliqCBSVal * 100, 4);
 
-  x = startX;
-  drawCell(ncm.codigo, x, y, colWidths[0], 20);
-  drawCell(ncm.descricao.slice(0, 40), (x += colWidths[0]), y, colWidths[1], 20);
-  drawCell(c.cstIbsCbs || "-", (x += colWidths[1]), y, colWidths[2], 20, "center");
-  drawCell(aliqIBS, (x += colWidths[2]), y, colWidths[3], 20, "center");
-  drawCell(aliqCBS, (x += colWidths[3]), y, colWidths[4], 20, "center");
+  // measure heights for each cell's text to allow wrapping and dynamic row height
+  const paddingV = 10; // vertical padding inside cell (top+bottom)
+  const hCodigo = doc.heightOfString(String(ncm.codigo || ""), { width: colWidths[0] - 8 });
+  const hDesc = doc.heightOfString(String(ncm.descricao || ""), { width: colWidths[1] - 8 });
+  const hCst = doc.heightOfString(String(c.cstIbsCbs || "-"), { width: colWidths[2] - 8 });
+  const hAliq1 = doc.heightOfString(String(aliqIBS), { width: colWidths[3] - 8 });
+  const hAliq2 = doc.heightOfString(String(aliqCBS), { width: colWidths[4] - 8 });
 
-  y += 20;
+  const rowHeight = Math.max(20, hCodigo, hDesc, hCst, hAliq1, hAliq2) + paddingV;
 
-  // quebra de página automática
-  if (y > doc.page.height - 80) {
+  // quebra de página automática usando a altura real da linha
+  if (y + rowHeight > doc.page.height - 80) {
     doc.addPage();
     addWatermark();
     y = 60;
@@ -154,6 +179,16 @@ if (!ncmList.length) {
     y += 20;
     doc.font("Helvetica").fontSize(9);
   }
+
+  x = startX;
+  drawCell(ncm.codigo, x, y, colWidths[0], rowHeight);
+  drawCell(String(ncm.descricao || ""), (x += colWidths[0]), y, colWidths[1], rowHeight);
+  drawCell(c.cstIbsCbs || "-", (x += colWidths[1]), y, colWidths[2], rowHeight, "center");
+  drawCell(aliqIBS, (x += colWidths[2]), y, colWidths[3], rowHeight, "center");
+  drawCell(aliqCBS, (x += colWidths[3]), y, colWidths[4], rowHeight, "center");
+
+  y += rowHeight;
+
 }
 
   // === Rodapé ===
@@ -198,8 +233,8 @@ if (!ncmList.length) {
         ncm.classTrib.forEach((c) => {
           const pRedIBS = parseFloat(c.pRedIBS) || 0;
           const pRedCBS = parseFloat(c.pRedCBS) || 0;
-          const aliqIBS = 0.10 * (1 - pRedIBS / 100);
-          const aliqCBS = 0.90 * (1 - pRedCBS / 100);
+          const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
+          const aliqCBSVal = 0.90 * (1 - pRedCBS / 100);
 
           sheet.addRow({
             codigo: ncm.codigo,
@@ -207,8 +242,8 @@ if (!ncmList.length) {
             cst: c.cstIbsCbs,
             pRedIBS: `${pRedIBS}%`,
             pRedCBS: `${pRedCBS}%`,
-            aliqIBS: `${aliqIBS.toFixed(4)}%`,
-            aliqCBS: `${aliqCBS.toFixed(4)}%`,
+            aliqIBS: formatAliq(aliqIBSVal * 100, 4),
+            aliqCBS: formatAliq(aliqCBSVal * 100, 4),
           });
         });
       });
@@ -233,10 +268,10 @@ if (!ncmList.length) {
         ncm.classTrib.forEach((c) => {
           const pRedIBS = parseFloat(c.pRedIBS) || 0;
           const pRedCBS = parseFloat(c.pRedCBS) || 0;
-          const aliqIBS = 0.10 * (1 - pRedIBS / 100);
-          const aliqCBS = 0.90 * (1 - pRedCBS / 100);
+          const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
+          const aliqCBSVal = 0.90 * (1 - pRedCBS / 100);
 
-          txt += `${ncm.codigo} | ${ncm.descricao.slice(0, 40)} | ${c.cstIbsCbs || "-"} | ${aliqIBS.toFixed(4)} | ${aliqCBS.toFixed(4)}\n`;
+          txt += `${ncm.codigo} | ${ncm.descricao.slice(0, 40)} | ${c.cstIbsCbs || "-"} | ${formatAliq(aliqIBSVal * 100, 4)} | ${formatAliq(aliqCBSVal * 100, 4)}\n`;
         });
       });
 
