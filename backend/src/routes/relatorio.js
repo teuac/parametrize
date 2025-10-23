@@ -1,11 +1,16 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from 'url';
 import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
 import { prisma } from "../prismaClient.js";
 
 const router = express.Router();
+
+// ESM: derive __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 router.get("/", async (req, res) => {
   try {
@@ -45,36 +50,52 @@ if (!ncmList.length) {
   const stream = fs.createWriteStream(filePath);
   doc.pipe(stream);
 
-  // === Marca d’água (colocada no fundo) ===
+  // === Marca d'água (logo opaca no fundo) ===
+  const logoPath = path.resolve(__dirname, '..', 'utils', 'logo.png');
   const addWatermark = () => {
-    const watermark = "PARAMETRIZZE";
+    if (!fs.existsSync(logoPath)) return;
+    const wmWidth = Math.min(600, doc.page.width * 0.8);
+    const wmX = (doc.page.width - wmWidth) / 2;
+    const wmY = (doc.page.height - wmWidth) / 2;
     doc.save();
-    doc.fontSize(70)
-      .fillColor("#f0e6b822")
-      .rotate(45, { origin: [300, 400] })
-      .text(watermark, 100, 250, { opacity: 0.2 });
+    // baixa opacidade
+    if (typeof doc.opacity === 'function') doc.opacity(0.06);
+    // rotaciona ao centro
+    doc.rotate(-45, { origin: [doc.page.width / 2, doc.page.height / 2] });
+    try {
+      // Use the image as a mask and fill with the company's yellow
+      doc.fillColor('#A8892A');
+      // PDFKit supports using an image as a mask; passing { mask: true } will
+      // draw the current fill clipped to the image shape if the image is a mask.
+      doc.image(logoPath, wmX, wmY, { width: wmWidth, mask: true });
+    } catch (err) {
+      // fallback: draw the image normally if mask isn't supported
+      try { doc.image(logoPath, wmX, wmY, { width: wmWidth }); } catch (_) {}
+    }
     doc.restore();
   };
 
   addWatermark();
 
-  // === Cabeçalho ===
-  const logoPath = path.resolve("public", "logo.png");
+  // === Cabeçalho escuro com logo e título em amarelo ===
+  doc.save();
+  // barra preta no topo
+  doc.rect(0, 0, doc.page.width, 90).fill('#0b0b0b');
+  // logo pequeno no canto (pintada com a cor da empresa quando possível)
   if (fs.existsSync(logoPath)) {
-    doc.image(logoPath, 40, 30, { width: 60 });
+    try {
+      doc.fillColor('#A8892A');
+      doc.image(logoPath, 40, 15, { width: 60, mask: true });
+    } catch (err) {
+      // fallback to plain image
+      try { doc.image(logoPath, 40, 15, { width: 60 }); } catch (e) {}
+    }
   }
-
-  doc
-    .fontSize(22)
-    .fillColor("#a8892a")
-    .font("Helvetica-Bold")
-    .text("PARAMETRIZZE", 110, 40);
-
-  doc
-    .moveDown()
-    .fontSize(14)
-    .fillColor("#333")
-    .text("Relatório de NCMs Fixados", { align: "left" });
+  // nome da empresa em amarelo
+  doc.fillColor('#A8892A').font('Helvetica-Bold').fontSize(20).text('PARAMETRIZE', 110, 30);
+  // título do relatório (subtítulo) em branco/clareado sob o título
+  doc.fillColor('#ffffff').font('Helvetica').fontSize(12).text('Relatório de NCMs', 110, 55);
+  doc.restore();
 
   doc.moveDown(1.5);
 
