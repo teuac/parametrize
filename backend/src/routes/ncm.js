@@ -31,20 +31,21 @@ const items = await prisma.$queryRaw`
       'pRedIBS', c."pRedIBS",
       'pRedCBS', c."pRedCBS",
       'link', c."link"
-    ) AS "classTrib"
+    ) AS "classTrib",
+    CASE
+      WHEN REPLACE(n."codigo", '.', '') ILIKE ${`${query}%`} THEN 1
+      WHEN n."descricao" ILIKE ${`${query}%`} THEN 2
+      ELSE 3
+    END AS relevance
   FROM "Ncm" n
   LEFT JOIN "ClassTrib" c 
     ON n."cClasstrib" = c."codigoClassTrib"
   WHERE 
-    (
-      REPLACE(n."codigo", '.', '') ILIKE ${`${query}%`}   -- 🔹 começa com
-      OR n."descricao" ILIKE ${`${query}%`}              -- 🔹 começa com
-      OR REPLACE(n."codigo", '.', '') ILIKE ${`%${query}%`}  -- 🔹 contém
-      OR n."descricao" ILIKE ${`%${query}%`}                 -- 🔹 contém
-    )
-  ORDER BY
-    SUBSTRING(REPLACE(n."codigo", '.', '') FROM 1 FOR 2)::int ASC,  -- 🔹 ordena pelos 2 primeiros dígitos
-    n."codigo" ASC
+    REPLACE(n."codigo", '.', '') ILIKE ${`${query}%`}
+    OR n."descricao" ILIKE ${`${query}%`}
+  ORDER BY 
+    relevance ASC,   -- 🔹 prioridade pra quem começa com o termo
+    n."codigo" ASC   -- 🔹 ordenação natural
   LIMIT 50;
 `;
     res.json(items);

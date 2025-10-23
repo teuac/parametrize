@@ -384,18 +384,25 @@ export default function Dashboard() {
             </button>
           </SearchBar>
 
-          {suggestions.length > 0 && (
-            <SuggestionBox>
-              {suggestions.map((s) => (
-                <SuggestionItem
-                  key={`${s.codigo}-${s.cClasstrib}`}
-                  onClick={() => searchNcm(s.codigo)}
-                >
-                  {s.codigo} — {s.descricao}
-                </SuggestionItem>
-              ))}
-            </SuggestionBox>
-          )}
+          {/* Sugestões */}
+{query.trim() && (
+  <SuggestionBox>
+    {suggestions.length > 0 ? (
+      suggestions.map((s) => (
+        <SuggestionItem
+          key={`${s.codigo}-${s.cClasstrib}`}
+          onClick={() => searchNcm(s.codigo)}
+        >
+          {s.codigo} — {s.descricao}
+        </SuggestionItem>
+      ))
+    ) : (
+      <SuggestionItem style={{ color: "#777", textAlign: "center", cursor: "default" }}>
+        Nenhum NCM encontrado
+      </SuggestionItem>
+    )}
+  </SuggestionBox>
+)}
 
           {Object.entries(groupedItems)
             .sort(([a], [b]) => {
