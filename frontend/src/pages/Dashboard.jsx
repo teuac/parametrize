@@ -3,7 +3,9 @@ import styled, { createGlobalStyle } from "styled-components";
 import { api } from "../api/http";
 import Sidebar from "../components/Sidebar";
 import { Search } from "lucide-react";
+import { BookOpen } from "lucide-react";
 
+/* ======= STYLES ======= */
 const Layout = styled.div`
   display: flex;
   min-height: 100vh;
@@ -28,7 +30,6 @@ const DashboardOverrides = createGlobalStyle`
 const Content = styled.div`
   flex: 1;
   padding: 40px 40px 60px 260px;
-
   @media (max-width: 768px) {
     padding: 20px;
   }
@@ -172,24 +173,16 @@ const Card = styled.div`
 const Section = styled.div`
   font-size: 0.9rem;
   color: #eee;
-
   strong {
     color: #a8892a;
   }
-
   p {
     margin: 4px 0;
   }
 `;
 
-const InfoMessage = styled.p`
-  text-align: center;
-  color: #aaa;
-  font-size: 0.95rem;
-  margin-bottom: 20px;
-`;
 const AliquotaBox = styled.div`
-  background: rgba(168, 137, 42, 0.1); /* leve dourado translúcido */
+  background: rgba(168, 137, 42, 0.1);
   border: 1px solid #a8892a44;
   border-radius: 8px;
   padding: 8px 12px;
@@ -199,7 +192,7 @@ const AliquotaBox = styled.div`
   display: flex;
   flex-direction: column;
   gap: 4px;
-  
+
   p {
     margin: 0;
   }
@@ -208,6 +201,14 @@ const AliquotaBox = styled.div`
     color: #a8892a;
   }
 `;
+
+const InfoMessage = styled.p`
+  text-align: center;
+  color: #aaa;
+  font-size: 0.95rem;
+  margin-bottom: 20px;
+`;
+
 const Footer = styled.div`
   margin-top: 40px;
   padding-top: 20px;
@@ -238,6 +239,39 @@ const Footer = styled.div`
   }
 `;
 
+const LawButtonContainer = styled.div`
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+`;
+
+const LawButton = styled.a`
+  background: #a8892a;
+  color: #0b0b0b;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+
+  &:hover {
+    background: #b69733;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+`;
+
+
+
+
+/* ======= COMPONENT ======= */
 export default function Dashboard() {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -264,18 +298,12 @@ export default function Dashboard() {
     setSuggestions([]);
     try {
       const { data } = await api.get("/ncm", { params: { q: code } });
-      // mantém os itens já travados
       const pinnedItems = items.filter((i) => pinnedCodes.includes(i.codigo));
-  const combined = [...pinnedItems, ...data];
-
-// 🔹 Elimina duplicados com base em código + cClasstrib
-  const unique = Array.from(
-    new Map(
-      combined.map((i) => [`${i.codigo}-${i.cClasstrib}`, i])
-   ).values()
-  );
-
-setItems(unique);
+      const combined = [...pinnedItems, ...data];
+      const unique = Array.from(
+        new Map(combined.map((i) => [`${i.codigo}-${i.cClasstrib}`, i])).values()
+      );
+      setItems(unique);
     } catch (err) {
       console.error("Erro ao buscar NCM:", err);
     }
@@ -290,44 +318,42 @@ setItems(unique);
   }
 
   async function gerarRelatorio(formato) {
-  if (pinnedCodes.length === 0) {
-    alert("Nenhum NCM fixado para gerar relatório.");
-    return;
-  }
+    if (pinnedCodes.length === 0) {
+      alert("Nenhum NCM fixado para gerar relatório.");
+      return;
+    }
 
-  const params = new URLSearchParams({
-    codigos: pinnedCodes.join(","),
-    formato,
-  });
-
-  const url = `${api.defaults.baseURL}/relatorio?${params.toString()}`;
-
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-      },
+    const params = new URLSearchParams({
+      codigos: pinnedCodes.join(","),
+      formato,
     });
 
-    if (!response.ok) throw new Error("Erro ao gerar relatório");
+    const url = `${api.defaults.baseURL}/relatorio?${params.toString()}`;
 
-    const blob = await response.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = `relatorio_ncm.${formato}`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(downloadUrl);
-  } catch (err) {
-    console.error(err);
-    alert("Erro ao gerar relatório");
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Erro ao gerar relatório");
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `relatorio_ncm.${formato}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao gerar relatório");
+    }
   }
-}
 
-
-  // Agrupa por código NCM
   const groupedItems = items.reduce((acc, item) => {
     if (!acc[item.codigo]) acc[item.codigo] = [];
     acc[item.codigo].push(item);
@@ -341,7 +367,7 @@ setItems(unique);
         <Sidebar />
         <Content>
           <InfoMessage>
-             Digite um código ou descrição de NCM e clique na lupa para buscar.
+            Digite um código ou descrição de NCM e clique na lupa para buscar.
           </InfoMessage>
 
           <SearchBar>
@@ -371,104 +397,127 @@ setItems(unique);
             </SuggestionBox>
           )}
 
-          {/* Se não houver resultados */}
-          {Object.keys(groupedItems).length === 0 && !query.trim() && (
-            <InfoMessage>
-              ✨ Nenhuma pesquisa realizada ainda. Comece digitando acima.
-            </InfoMessage>
-          )}
-
-          {/* Renderiza grupos */}
           {Object.entries(groupedItems)
-  // 🔹 Ordena: não fixados primeiro, fixados depois
-  .sort(([a], [b]) => {
-    const aPinned = pinnedCodes.includes(a);
-    const bPinned = pinnedCodes.includes(b);
-    if (aPinned === bPinned) return 0;
-    return aPinned ? 1 : -1; // fixados vão pro fim
-  })
-  .map(([codigo, group]) => (
-    <NcmGroup key={codigo}>
-     <NcmHeader
-  pinned={pinnedCodes.includes(codigo)}
-  onClick={() => togglePin(codigo)}
->
-  <div>
-    <strong>{codigo}</strong>{" "}
-    <span className="desc">{group[0].descricao}</span>
-  </div>
-  <span>
-    {pinnedCodes.includes(codigo)
-      ? "📌 Fixado"
-      : "📍 Clique para fixar"}
-  </span>
-</NcmHeader>
+            .sort(([a], [b]) => {
+              const aPinned = pinnedCodes.includes(a);
+              const bPinned = pinnedCodes.includes(b);
+              return aPinned === bPinned ? 0 : aPinned ? 1 : -1;
+            })
+            .map(([codigo, group]) => (
+              <NcmGroup key={codigo}>
+                <NcmHeader
+                  pinned={pinnedCodes.includes(codigo)}
+                  onClick={() => togglePin(codigo)}
+                >
+                  <div>
+                    <strong>{codigo}</strong>{" "}
+                    <span className="desc">{group[0].descricao}</span>
+                  </div>
+                  <span>
+                    {pinnedCodes.includes(codigo)
+                      ? "📌 Fixado"
+                      : "📍 Clique para fixar"}
+                  </span>
+                </NcmHeader>
 
-      <Grid>
-        {group.map((item) => (
-          <Card key={`${item.codigo}-${item.cClasstrib}`}>
-            {item.classTrib && (
-             <Section>
+                <Grid>
+                  {group.map((item) => {
+                    const { classTrib } = item;
+                    if (!classTrib) return null;
 
-              <p>
-    <strong>CST:</strong>{" "}
-    {item.classTrib.cstIbsCbs || "—"}
+                    const pRedIBS = parseFloat(classTrib.pRedIBS) || 0;
+                    const pRedCBS = parseFloat(classTrib.pRedCBS) || 0;
+                    const cst = classTrib.cstIbsCbs?.toString();
+                    const cstZerados = ["400", "410", "510", "550", "620"];
+                    const isIsento = cstZerados.includes(cst);
+
+                    const aliquotaIBS = isIsento
+                      ? 0
+                      : 0.1 * (1 - pRedIBS / 100);
+                    const aliquotaCBS = isIsento
+                      ? 0
+                      : 0.9 * (1 - pRedCBS / 100);
+
+                    return (
+                      <Card key={`${item.codigo}-${item.cClasstrib}`}>
+                        <Section>
+                          <p>
+                            <strong>CST:</strong> {cst || "—"}
+                          </p>
+                          <p>
+                            <strong>cClasTrib:</strong>{" "}
+                            {classTrib.codigoClassTrib
+                              ?.toString()
+                              .padStart(6, "0")}
+                          </p>
+                          <p>
+                            <strong>Descrição:</strong>{" "}
+                            {classTrib.descricaoClassTrib || "—"}
+                          </p>
+                          <p>
+                            <strong>Redução IBS/CBS:</strong>{" "}
+                            {classTrib.pRedIBS}% / {classTrib.pRedCBS}%
+                          </p>
+
+                          <AliquotaBox>
+  <p>
+    <strong>Alíquota IBS:</strong>{" "}
+    {aliquotaIBS.toFixed(2)}%
   </p>
   <p>
-    <strong>cClasTrib:</strong>{" "}
-    {item.classTrib.codigoClassTrib?.toString().padStart(6, "0")}
-  </p>
-  
-  <p>
-    <strong>Descrição:</strong>{" "}
-    {item.classTrib.descricaoClassTrib || "—"}
-  </p>
-  <p>
-    <strong>Redução IBS/CBS:</strong>{" "}
-    {item.classTrib.pRedIBS}% / {item.classTrib.pRedCBS}%
+    <strong>Alíquota CBS:</strong>{" "}
+    {aliquotaCBS.toFixed(2)}%
   </p>
 
-  {/* === NOVOS CAMPOS CALCULADOS === */}
-  <AliquotaBox>
-  {(() => {
-    const pRedIBS = parseFloat(item.classTrib.pRedIBS) || 0;
-    const pRedCBS = parseFloat(item.classTrib.pRedCBS) || 0;
-
-    const aliquotaIBS = 0.10 * (1 - pRedIBS / 100);
-    const aliquotaCBS = 0.90 * (1 - pRedCBS / 100);
-
-    return (
-      <>
-        <p>
-          <strong>Alíquota IBS:</strong>{" "}
-          {parseFloat(aliquotaIBS.toFixed(4))+"%"}
-        </p>
-        <p>
-          <strong>Alíquota CBS:</strong>{" "}
-          {parseFloat(aliquotaCBS.toFixed(4))+"%"}
-        </p>
-      </>
-    );
-  })()}
+  {isIsento && (
+    <div
+      style={{
+        marginTop: "8px",
+        padding: "6px 10px",
+        borderRadius: "6px",
+        background: "rgba(168,137,42,0.15)",
+        border: "1px solid #a8892a55",
+        color: "#f5f5f5",
+        fontSize: "0.85rem",
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+      }}
+    >
+      <span style={{ color: "#a8892a" }}>⚠️</span>
+      Operação isenta ({cst})
+    </div>
+  )}
 </AliquotaBox>
-</Section>
-            )}
-          </Card>
-        ))}
-      </Grid>
-    </NcmGroup>
 
-    
-  ))}
+                         <LawButtonContainer>
+  <LawButton
+    href={classTrib.link || "#"}
+    target={classTrib.link ? "_blank" : "_self"}
+    rel="noopener noreferrer"
+    style={{
+      opacity: classTrib.link ? 1 : 0.5,
+      cursor: classTrib.link ? "pointer" : "not-allowed",
+    }}
+  >
+      <BookOpen size={18} color="#0b0b0b" strokeWidth={2} />Base Legal - LC 214/25
+  </LawButton>
+</LawButtonContainer>
+                        </Section>
+                      </Card>
+                    );
+                  })}
+                </Grid>
+              </NcmGroup>
+            ))}
 
-  {pinnedCodes.length > 0 && (
-  <Footer>
-    <button onClick={() => gerarRelatorio("pdf")}>📄 Gerar PDF</button>
-    <button onClick={() => gerarRelatorio("xlsx")}>📊 Gerar Excel</button>
-    <button onClick={() => gerarRelatorio("txt")}>📜 Gerar TXT</button>
-  </Footer>
-)}
-
+          {pinnedCodes.length > 0 && (
+            <Footer>
+              <button onClick={() => gerarRelatorio("pdf")}>📄 Gerar PDF</button>
+              <button onClick={() => gerarRelatorio("xlsx")}>📊 Gerar Excel</button>
+              <button onClick={() => gerarRelatorio("txt")}>📜 Gerar TXT</button>
+            </Footer>
+          )}
         </Content>
       </Layout>
     </>

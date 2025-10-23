@@ -20,23 +20,33 @@ ncmRouter.get("/", async (req, res) => {
 
     const query = String(q).replace(/\./g, ""); // remove pontos da busca
 
-    const items = await prisma.$queryRaw`
-      SELECT n.*, json_build_object(
-        'codigoClassTrib', c."codigoClassTrib",
-        'cstIbsCbs', c."cstIbsCbs",
-        'descricaoCstIbsCbs', c."descricaoCstIbsCbs",
-        'descricaoClassTrib', c."descricaoClassTrib",
-        'pRedIBS', c."pRedIBS",
-        'pRedCBS', c."pRedCBS"
-      ) as "classTrib"
-      FROM "Ncm" n
-      LEFT JOIN "ClassTrib" c ON n."cClasstrib" = c."codigoClassTrib"
-      WHERE REPLACE(n."codigo", '.', '') ILIKE ${`%${query}%`}
-         OR n."descricao" ILIKE ${`%${q}%`}
-      ORDER BY n."codigo" ASC
-      LIMIT 50;
-    `;
-
+const items = await prisma.$queryRaw`
+  SELECT 
+    n.*, 
+    json_build_object(
+      'codigoClassTrib', c."codigoClassTrib",
+      'cstIbsCbs', c."cstIbsCbs",
+      'descricaoCstIbsCbs', c."descricaoCstIbsCbs",
+      'descricaoClassTrib', c."descricaoClassTrib",
+      'pRedIBS', c."pRedIBS",
+      'pRedCBS', c."pRedCBS",
+      'link', c."link"
+    ) AS "classTrib"
+  FROM "Ncm" n
+  LEFT JOIN "ClassTrib" c 
+    ON n."cClasstrib" = c."codigoClassTrib"
+  WHERE 
+    (
+      REPLACE(n."codigo", '.', '') ILIKE ${`${query}%`}   -- 🔹 começa com
+      OR n."descricao" ILIKE ${`${query}%`}              -- 🔹 começa com
+      OR REPLACE(n."codigo", '.', '') ILIKE ${`%${query}%`}  -- 🔹 contém
+      OR n."descricao" ILIKE ${`%${query}%`}                 -- 🔹 contém
+    )
+  ORDER BY
+    SUBSTRING(REPLACE(n."codigo", '.', '') FROM 1 FOR 2)::int ASC,  -- 🔹 ordena pelos 2 primeiros dígitos
+    n."codigo" ASC
+  LIMIT 50;
+`;
     res.json(items);
   } catch (err) {
     console.error("❌ Erro ao buscar NCM:", err);

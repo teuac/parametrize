@@ -85,24 +85,23 @@ if (!ncmList.length) {
 
   addWatermark();
 
-  // === Cabeçalho escuro com logo e título em amarelo ===
+  // === Cabeçalho escuro com logo maior e título centralizado ===
   doc.save();
   // barra preta no topo
   doc.rect(0, 0, doc.page.width, 90).fill('#0b0b0b');
-  // logo pequeno no canto (pintada com a cor da empresa quando possível)
+  // logo aumentada no canto (pintada com a cor da empresa quando possível)
   if (fs.existsSync(logoPath)) {
     try {
       doc.fillColor('#A8892A');
-      doc.image(logoPath, 40, 15, { width: 60, mask: true });
+      // aumentar a largura para destacar a marca
+      doc.image(logoPath, 40, 10, { width: 100, mask: true });
     } catch (err) {
       // fallback to plain image
-      try { doc.image(logoPath, 40, 15, { width: 60 }); } catch (e) {}
+      try { doc.image(logoPath, 40, 10, { width: 100 }); } catch (e) {}
     }
   }
-  // nome da empresa em amarelo
-  doc.fillColor('#A8892A').font('Helvetica-Bold').fontSize(20).text('PARAMETRIZE', 110, 30);
-  // título do relatório (subtítulo) em branco/clareado sob o título
-  doc.fillColor('#ffffff').font('Helvetica').fontSize(12).text('Relatório de NCMs', 110, 55);
+  // título centralizado na barra (remove o nome 'PARAMETRIZE')
+  doc.fillColor('#A8892A').font('Helvetica-Bold').fontSize(20).text('Relatório de NCMs', 0, 30, { align: 'center' });
   doc.restore();
 
   doc.moveDown(1.5);
@@ -114,17 +113,19 @@ if (!ncmList.length) {
   const availableWidth = doc.page.width - startX - 40; // page width minus left and right margins
   // keep some sensible minimums for small pages
   const minCodigo = 70;
+  const minClas = 80; // new column for cClasTrib
   const minCst = 50;
   const minAliq = 70;
   // description gets the remaining space
   const colWidths = [
     minCodigo,
-    Math.max(150, availableWidth - (minCodigo + minCst + minAliq + minAliq)),
+    Math.max(150, availableWidth - (minCodigo + minClas + minCst + minAliq + minAliq)),
+    minClas,
     minCst,
     minAliq,
     minAliq,
   ];
-  const headers = ["Código", "Descrição", "CST", "Aliq IBS", "Aliq CBS"];
+  const headers = ["Código", "Descrição", "cClasTrib", "CST", "Aliq IBS", "Aliq CBS"];
 
   const drawCell = (text, x, y, width, height, align = "left") => {
     doc.rect(x, y, width, height).strokeColor("#999").lineWidth(0.3).stroke();
@@ -144,52 +145,58 @@ if (!ncmList.length) {
   doc.font("Helvetica").fontSize(9).fillColor("#000");
 
   // === Linhas ===
- for (const ncm of ncmList) {
-  const c = ncm.classTrib;
-  if (!c) continue; // sem relação, pula
+  for (const ncm of ncmList) {
+    // normalize classTrib to an array for consistent iteration
+    const classTribs = Array.isArray(ncm.classTrib)
+      ? ncm.classTrib
+      : ncm.classTrib ? [ncm.classTrib] : [];
+    if (!classTribs.length) continue;
 
-  const pRedIBS = parseFloat(c.pRedIBS) || 0;
-  const pRedCBS = parseFloat(c.pRedCBS) || 0;
-  const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
-  const aliqCBSVal = 0.90 * (1 - pRedCBS / 100);
-  const aliqIBS = formatAliq(aliqIBSVal * 100, 4); // convert to percent
-  const aliqCBS = formatAliq(aliqCBSVal * 100, 4);
+    for (const c of classTribs) {
+      const pRedIBS = parseFloat(c.pRedIBS) || 0;
+      const pRedCBS = parseFloat(c.pRedCBS) || 0;
+      const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
+      const aliqCBSVal = 0.90 * (1 - pRedCBS / 100);
+      const aliqIBS = formatAliq(aliqIBSVal * 100, 4); // convert to percent
+      const aliqCBS = formatAliq(aliqCBSVal * 100, 4);
 
-  // measure heights for each cell's text to allow wrapping and dynamic row height
-  const paddingV = 10; // vertical padding inside cell (top+bottom)
-  const hCodigo = doc.heightOfString(String(ncm.codigo || ""), { width: colWidths[0] - 8 });
-  const hDesc = doc.heightOfString(String(ncm.descricao || ""), { width: colWidths[1] - 8 });
-  const hCst = doc.heightOfString(String(c.cstIbsCbs || "-"), { width: colWidths[2] - 8 });
-  const hAliq1 = doc.heightOfString(String(aliqIBS), { width: colWidths[3] - 8 });
-  const hAliq2 = doc.heightOfString(String(aliqCBS), { width: colWidths[4] - 8 });
+      // measure heights for each cell's text to allow wrapping and dynamic row height
+      const paddingV = 10; // vertical padding inside cell (top+bottom)
+      const hCodigo = doc.heightOfString(String(ncm.codigo || ""), { width: colWidths[0] - 8 });
+      const hDesc = doc.heightOfString(String(ncm.descricao || ""), { width: colWidths[1] - 8 });
+      const hClas = doc.heightOfString(String(c.cClasTrib || ""), { width: colWidths[2] - 8 });
+      const hCst = doc.heightOfString(String(c.cstIbsCbs || "-"), { width: colWidths[3] - 8 });
+      const hAliq1 = doc.heightOfString(String(aliqIBS), { width: colWidths[4] - 8 });
+      const hAliq2 = doc.heightOfString(String(aliqCBS), { width: colWidths[5] - 8 });
 
-  const rowHeight = Math.max(20, hCodigo, hDesc, hCst, hAliq1, hAliq2) + paddingV;
+      const rowHeight = Math.max(20, hCodigo, hDesc, hClas, hCst, hAliq1, hAliq2) + paddingV;
 
-  // quebra de página automática usando a altura real da linha
-  if (y + rowHeight > doc.page.height - 80) {
-    doc.addPage();
-    addWatermark();
-    y = 60;
-    x = startX;
-    doc.font("Helvetica-Bold").fontSize(10).fillColor("#111");
-    headers.forEach((h, i) => {
-      drawCell(h, x, y, colWidths[i], 20, "center");
-      x += colWidths[i];
-    });
-    y += 20;
-    doc.font("Helvetica").fontSize(9);
+      // quebra de página automática usando a altura real da linha
+      if (y + rowHeight > doc.page.height - 80) {
+        doc.addPage();
+        addWatermark();
+        y = 60;
+        x = startX;
+        doc.font("Helvetica-Bold").fontSize(10).fillColor("#111");
+        headers.forEach((h, i) => {
+          drawCell(h, x, y, colWidths[i], 20, "center");
+          x += colWidths[i];
+        });
+        y += 20;
+        doc.font("Helvetica").fontSize(9);
+      }
+
+      x = startX;
+      drawCell(ncm.codigo, x, y, colWidths[0], rowHeight);
+      drawCell(String(ncm.descricao || ""), (x += colWidths[0]), y, colWidths[1], rowHeight);
+      drawCell(String(c.cClasTrib || ""), (x += colWidths[1]), y, colWidths[2], rowHeight);
+      drawCell(c.cstIbsCbs || "-", (x += colWidths[2]), y, colWidths[3], rowHeight, "center");
+      drawCell(aliqIBS, (x += colWidths[3]), y, colWidths[4], rowHeight, "center");
+      drawCell(aliqCBS, (x += colWidths[4]), y, colWidths[5], rowHeight, "center");
+
+      y += rowHeight;
+    }
   }
-
-  x = startX;
-  drawCell(ncm.codigo, x, y, colWidths[0], rowHeight);
-  drawCell(String(ncm.descricao || ""), (x += colWidths[0]), y, colWidths[1], rowHeight);
-  drawCell(c.cstIbsCbs || "-", (x += colWidths[1]), y, colWidths[2], rowHeight, "center");
-  drawCell(aliqIBS, (x += colWidths[2]), y, colWidths[3], rowHeight, "center");
-  drawCell(aliqCBS, (x += colWidths[3]), y, colWidths[4], rowHeight, "center");
-
-  y += rowHeight;
-
-}
 
   // === Rodapé ===
   doc
@@ -220,6 +227,7 @@ if (!ncmList.length) {
       sheet.columns = [
         { header: "Código", key: "codigo", width: 15 },
         { header: "Descrição", key: "descricao", width: 40 },
+        { header: "cClasTrib", key: "cClasTrib", width: 15 },
         { header: "CST", key: "cst", width: 10 },
         { header: "Redução IBS", key: "pRedIBS", width: 15 },
         { header: "Redução CBS", key: "pRedCBS", width: 15 },
@@ -239,6 +247,7 @@ if (!ncmList.length) {
           sheet.addRow({
             codigo: ncm.codigo,
             descricao: ncm.descricao,
+            cClasTrib: c.cClasTrib,
             cst: c.cstIbsCbs,
             pRedIBS: `${pRedIBS}%`,
             pRedCBS: `${pRedCBS}%`,
@@ -258,9 +267,9 @@ if (!ncmList.length) {
     // 📄 === GERAÇÃO DO TXT ===
     // ===================================================================
     if (formatoLimpo === "txt") {
-      let txt = "RELATÓRIO DE NCMs FIXADOS - PARAMETRIZZE\n\n";
-      txt += "Código | Descrição | CST | Aliq IBS | Aliq CBS\n";
-      txt += "------------------------------------------------------------\n";
+  let txt = "RELATÓRIO DE NCMs FIXADOS - PARAMETRIZZE\n\n";
+  txt += "Código | Descrição | cClasTrib | CST | Aliq IBS | Aliq CBS\n";
+  txt += "-------------------------------------------------------------------\n";
 
       ncmList.forEach((ncm) => {
         if (!Array.isArray(ncm.classTrib) || !ncm.classTrib.length) return;
@@ -271,7 +280,7 @@ if (!ncmList.length) {
           const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
           const aliqCBSVal = 0.90 * (1 - pRedCBS / 100);
 
-          txt += `${ncm.codigo} | ${ncm.descricao.slice(0, 40)} | ${c.cstIbsCbs || "-"} | ${formatAliq(aliqIBSVal * 100, 4)} | ${formatAliq(aliqCBSVal * 100, 4)}\n`;
+          txt += `${ncm.codigo} | ${ncm.descricao.slice(0, 40)} | ${c.cClasTrib || ""} | ${c.cstIbsCbs || "-"} | ${formatAliq(aliqIBSVal * 100, 4)} | ${formatAliq(aliqCBSVal * 100, 4)}\n`;
         });
       });
 
