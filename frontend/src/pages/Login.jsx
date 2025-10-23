@@ -9,6 +9,7 @@ const Container = styled.div`
   position: fixed;
   inset: 0;
   display: flex;
+  flex-direction: column; /* stack logo above card */
   justify-content: center;
   align-items: center;
   background: radial-gradient(circle at top left, #111 0%, #000 80%);
@@ -28,14 +29,38 @@ const Container = styled.div`
 `;
 
 const LogoTop = styled.div`
-  position: absolute;
-  top: 118px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 3;
+  /* logo in the normal flow above the card; responsive sizing but constrained on small screens */
+  position: relative;
   display: flex;
   justify-content: center;
   width: 100%;
+  /* default: larger and closer to the card */
+  margin-bottom: 8px;
+  --logo-w: clamp(140px, 18vw, 220px);
+  --logo-max-h: clamp(100px, 24vh, 240px);
+
+  img, svg {
+    width: var(--logo-w);
+    max-height: var(--logo-max-h);
+    height: auto;
+    display: block;
+    object-fit: contain;
+  }
+
+  /* small screens (phones) — keep logo smaller and with more gap so it never invades the card */
+  @media (max-width: 480px) {
+    --logo-w: clamp(90px, 28vw, 140px);
+    --logo-max-h: 84px;
+    margin-bottom: 16px;
+  }
+
+  /* large screens — make it more prominent and closer */
+  @media (min-width: 1024px) {
+    /* make logo even larger on wide screens (up to 300px) and bring it a bit closer */
+    --logo-w: clamp(200px, 16vw, 300px);
+    --logo-max-h: 300px;
+    margin-bottom: 4px;
+  }
 `;
 
 
@@ -211,7 +236,7 @@ export default function Login() {
     <Container>
       <LoginOverrides />
       <LogoTop>
-        <Logo size="200px" />
+        <Logo size="140px" />
       </LogoTop>
       <Card>
         <Title>Bem Vindo</Title>
