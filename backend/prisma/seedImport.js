@@ -40,22 +40,22 @@ async function seed() {
     console.log("✅ ClassTrib importado com sucesso. Inserindo NCMs...");
 
     // 2️⃣ Inserir NCM (somente depois)
-    for (const n of ncmSheet) {
-      await prisma.ncm.upsert({
-        where: {
-          codigo_cClasstrib: {
-            codigo: n.ncm.toString(),
-            cClasstrib: Number(n.cclasstrib),
-          },
-        },
-        update: {},
-        create: {
-          codigo: n.ncm.toString(),
-          descricao: n.descrição || "",
-          cClasstrib: Number(n.cclasstrib),
-        },
-      });
-    }
+for (const n of ncmSheet) {
+  await prisma.ncm.upsert({
+    where: {
+      codigo_cClasstrib: {
+        codigo: n["NCM"]?.toString(),
+        cClasstrib: Number(n["Código Tributário"]),
+      },
+    },
+    update: {},
+    create: {
+      codigo: n["NCM"]?.toString(),
+      descricao: n["Descrição"] || "",
+      cClasstrib: Number(n["Código Tributário"]),
+    },
+  });
+}
 
     console.log("✅ NCM importado com sucesso!");
   } catch (err) {
