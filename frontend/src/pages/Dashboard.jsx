@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import styled, { createGlobalStyle } from "styled-components";
 import { api } from "../api/http";
 import Sidebar from "../components/Sidebar";
-import { Search } from "lucide-react";
-import { BookOpen } from "lucide-react";
+import { Search, BookOpen } from "lucide-react";
 
 /* ======= STYLES ======= */
 const Layout = styled.div`
@@ -173,9 +172,11 @@ const Card = styled.div`
 const Section = styled.div`
   font-size: 0.9rem;
   color: #eee;
+
   strong {
     color: #a8892a;
   }
+
   p {
     margin: 4px 0;
   }
@@ -192,11 +193,9 @@ const AliquotaBox = styled.div`
   display: flex;
   flex-direction: column;
   gap: 4px;
-
   p {
     margin: 0;
   }
-
   strong {
     color: #a8892a;
   }
@@ -268,13 +267,11 @@ const LawButton = styled.a`
   }
 `;
 
-
-
-
 /* ======= COMPONENT ======= */
 export default function Dashboard() {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
+  const [noResults, setNoResults] = useState(false);
   const [items, setItems] = useState([]);
   const [pinnedCodes, setPinnedCodes] = useState([]);
 
@@ -284,18 +281,25 @@ export default function Dashboard() {
   }, []);
 
   async function fetchSuggestions(value) {
-    if (!value.trim()) return setSuggestions([]);
+    if (!value.trim()) {
+      setSuggestions([]);
+      setNoResults(false);
+      return;
+    }
     try {
       const { data } = await api.get("/ncm", { params: { q: value } });
       setSuggestions(data.slice(0, 5));
+      setNoResults(data.length === 0);
     } catch (err) {
       console.error("Erro ao buscar sugestões:", err);
+      setNoResults(true);
     }
   }
 
   async function searchNcm(code) {
     setQuery(code);
     setSuggestions([]);
+    setNoResults(false);
     try {
       const { data } = await api.get("/ncm", { params: { q: code } });
       const pinnedItems = items.filter((i) => pinnedCodes.includes(i.codigo));
@@ -385,25 +389,34 @@ export default function Dashboard() {
           </SearchBar>
 
           {/* Sugestões */}
-{query.trim() && (
-  <SuggestionBox>
-    {suggestions.length > 0 ? (
-      suggestions.map((s) => (
-        <SuggestionItem
-          key={`${s.codigo}-${s.cClasstrib}`}
-          onClick={() => searchNcm(s.codigo)}
-        >
-          {s.codigo} — {s.descricao}
-        </SuggestionItem>
-      ))
-    ) : (
-      <SuggestionItem style={{ color: "#777", textAlign: "center", cursor: "default" }}>
-        Nenhum NCM encontrado
-      </SuggestionItem>
-    )}
-  </SuggestionBox>
-)}
+          {query.trim() && (
+            <SuggestionBox>
+              {noResults ? (
+                <SuggestionItem
+                  style={{
+                    color: "#777",
+                    textAlign: "center",
+                    cursor: "default",
+                    padding: "12px",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Nenhum NCM encontrado
+                </SuggestionItem>
+              ) : (
+                suggestions.map((s) => (
+                  <SuggestionItem
+                    key={`${s.codigo}-${s.cClasstrib}`}
+                    onClick={() => searchNcm(s.codigo)}
+                  >
+                    {s.codigo} — {s.descricao}
+                  </SuggestionItem>
+                ))
+              )}
+            </SuggestionBox>
+          )}
 
+          {/* Resultados */}
           {Object.entries(groupedItems)
             .sort(([a], [b]) => {
               const aPinned = pinnedCodes.includes(a);
@@ -438,12 +451,8 @@ export default function Dashboard() {
                     const cstZerados = ["400", "410", "510", "550", "620"];
                     const isIsento = cstZerados.includes(cst);
 
-                    const aliquotaIBS = isIsento
-                      ? 0
-                      : 0.1 * (1 - pRedIBS / 100);
-                    const aliquotaCBS = isIsento
-                      ? 0
-                      : 0.9 * (1 - pRedCBS / 100);
+                    const aliquotaIBS = isIsento ? 0 : 0.1 * (1 - pRedIBS / 100);
+                    const aliquotaCBS = isIsento ? 0 : 0.9 * (1 - pRedCBS / 100);
 
                     return (
                       <Card key={`${item.codigo}-${item.cClasstrib}`}>
@@ -467,49 +476,56 @@ export default function Dashboard() {
                           </p>
 
                           <AliquotaBox>
-  <p>
-    <strong>Alíquota IBS:</strong>{" "}
-    {aliquotaIBS.toFixed(2)}%
-  </p>
-  <p>
-    <strong>Alíquota CBS:</strong>{" "}
-    {aliquotaCBS.toFixed(2)}%
-  </p>
+                            <p>
+                              <strong>Alíquota IBS:</strong>{" "}
+                              {aliquotaIBS.toFixed(2)}%
+                            </p>
+                            <p>
+                              <strong>Alíquota CBS:</strong>{" "}
+                              {aliquotaCBS.toFixed(2)}%
+                            </p>
 
-  {isIsento && (
-    <div
-      style={{
-        marginTop: "8px",
-        padding: "6px 10px",
-        borderRadius: "6px",
-        background: "rgba(168,137,42,0.15)",
-        border: "1px solid #a8892a55",
-        color: "#f5f5f5",
-        fontSize: "0.85rem",
-        display: "flex",
-        alignItems: "center",
-        gap: "6px",
-      }}
-    >
-      <span style={{ color: "#a8892a" }}>⚠️</span>
-      Operação isenta ({cst})
-    </div>
-  )}
-</AliquotaBox>
+                            {isIsento && (
+                              <div
+                                style={{
+                                  marginTop: "8px",
+                                  padding: "6px 10px",
+                                  borderRadius: "6px",
+                                  background: "rgba(168,137,42,0.15)",
+                                  border: "1px solid #a8892a55",
+                                  color: "#f5f5f5",
+                                  fontSize: "0.85rem",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                }}
+                              >
+                                <span style={{ color: "#a8892a" }}>⚠️</span>
+                                Operação isenta ({cst})
+                              </div>
+                            )}
+                          </AliquotaBox>
 
-                         <LawButtonContainer>
-  <LawButton
-    href={classTrib.link || "#"}
-    target={classTrib.link ? "_blank" : "_self"}
-    rel="noopener noreferrer"
-    style={{
-      opacity: classTrib.link ? 1 : 0.5,
-      cursor: classTrib.link ? "pointer" : "not-allowed",
-    }}
-  >
-      <BookOpen size={18} color="#0b0b0b" strokeWidth={2} />Base Legal - LC 214/25
-  </LawButton>
-</LawButtonContainer>
+                          <LawButtonContainer>
+                            <LawButton
+                              href={classTrib.link || "#"}
+                              target={classTrib.link ? "_blank" : "_self"}
+                              rel="noopener noreferrer"
+                              style={{
+                                opacity: classTrib.link ? 1 : 0.5,
+                                cursor: classTrib.link
+                                  ? "pointer"
+                                  : "not-allowed",
+                              }}
+                            >
+                              <BookOpen
+                                size={18}
+                                color="#0b0b0b"
+                                strokeWidth={2}
+                              />
+                              Base Legal - LC 214/25
+                            </LawButton>
+                          </LawButtonContainer>
                         </Section>
                       </Card>
                     );
