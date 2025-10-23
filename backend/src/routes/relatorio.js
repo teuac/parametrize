@@ -243,29 +243,57 @@ if (!ncmList.length) {
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet("Relatório NCM");
 
+      // try to add logo at the top-left
+      try {
+        if (fs.existsSync(logoPath)) {
+          const imageId = workbook.addImage({ filename: logoPath, extension: 'png' });
+          sheet.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: 160, height: 60 } });
+        }
+      } catch (e) {
+        // ignore image errors
+      }
+
+      // add centered title near the top
+      sheet.mergeCells('C1:F2');
+      const titleCell = sheet.getCell('C1');
+      titleCell.value = 'Classificação Tributária';
+      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      titleCell.font = { name: 'Helvetica', size: 14, bold: true, color: { argb: 'FFA8892A' } };
+
+      // prepare columns (table headers)
       sheet.columns = [
-        { header: "Código", key: "codigo", width: 15 },
-        { header: "Descrição", key: "descricao", width: 40 },
-        { header: "cClasTrib", key: "cClasTrib", width: 15 },
-        { header: "CST", key: "cst", width: 10 },
-        { header: "Redução IBS", key: "pRedIBS", width: 15 },
-        { header: "Redução CBS", key: "pRedCBS", width: 15 },
-        { header: "Aliquota IBS", key: "aliqIBS", width: 15 },
-        { header: "Aliquota CBS", key: "aliqCBS", width: 15 },
+        { header: 'Código', key: 'codigo', width: 15 },
+        { header: 'Descrição', key: 'descricao', width: 40 },
+        { header: 'cClasTrib', key: 'cClasTrib', width: 15 },
+        { header: 'CST', key: 'cst', width: 12 },
+        { header: 'Redução IBS', key: 'pRedIBS', width: 12 },
+        { header: 'Redução CBS', key: 'pRedCBS', width: 12 },
+        { header: 'Aliquota IBS', key: 'aliqIBS', width: 12 },
+        { header: 'Aliquota CBS', key: 'aliqCBS', width: 12 },
       ];
 
-      ncmList.forEach((ncm) => {
-        if (!Array.isArray(ncm.classTrib) || !ncm.classTrib.length) return;
+      // leave a blank row under title/image
+      sheet.addRow([]);
+      // header row
+      const headerRow = sheet.addRow(sheet.columns.map(c => c.header));
+      headerRow.font = { bold: true };
 
-        ncm.classTrib.forEach((c) => {
+      // write data: normalize classTrib to an array like PDF and apply same logic
+      for (const ncm of ncmList) {
+        const classTribs = Array.isArray(ncm.classTrib)
+          ? ncm.classTrib
+          : ncm.classTrib ? [ncm.classTrib] : [];
+        if (!classTribs.length) continue;
+
+        for (const c of classTribs) {
           const pRedIBS = parseFloat(c.pRedIBS) || 0;
           const pRedCBS = parseFloat(c.pRedCBS) || 0;
           const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
           const aliqCBSVal = 0.90 * (1 - pRedCBS / 100);
-          const zeroCsts = new Set(["400", "410", "510", "550", "620"]);
-          const cstCode = String(c.cstIbsCbs || "").trim();
-          const aliqIBSStr = zeroCsts.has(cstCode) ? "0%" : aliqIBSVal.toFixed(2) + "%";
-          const aliqCBSStr = zeroCsts.has(cstCode) ? "0%" : aliqCBSVal.toFixed(2) + "%";
+          const zeroCsts = new Set(['400','410','510','550','620']);
+          const cstCode = String(c.cstIbsCbs || '').trim();
+          const aliqIBSStr = zeroCsts.has(cstCode) ? '0%' : aliqIBSVal.toFixed(2) + '%';
+          const aliqCBSStr = zeroCsts.has(cstCode) ? '0%' : aliqCBSVal.toFixed(2) + '%';
 
           sheet.addRow({
             codigo: ncm.codigo,
@@ -277,12 +305,12 @@ if (!ncmList.length) {
             aliqIBS: aliqIBSStr,
             aliqCBS: aliqCBSStr,
           });
-        });
-      });
+        }
+      }
 
       const buffer = await workbook.xlsx.writeBuffer();
-      res.setHeader("Content-Disposition", 'attachment; filename="relatorio_ncm.xlsx"');
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader('Content-Disposition', 'attachment; filename="relatorio_ncm.xlsx"');
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       return res.send(buffer);
     }
 
@@ -290,14 +318,19 @@ if (!ncmList.length) {
     // 📄 === GERAÇÃO DO TXT ===
     // ===================================================================
     if (formatoLimpo === "txt") {
-  let txt = "RELATÓRIO DE NCMs FIXADOS - PARAMETRIZZE\n\n";
-  txt += "Código | Descrição | cClasTrib | CST | Aliq IBS | Aliq CBS\n";
-  txt += "-------------------------------------------------------------------\n";
+      // Build TXT header
+      let txt = "RELATÓRIO DE NCMs FIXADOS - PARAMETRIZZE\n\n";
+      txt += "Código | Descrição | cClasTrib | CST | Aliq IBS | Aliq CBS\n";
+      txt += "-------------------------------------------------------------------\n";
 
-      ncmList.forEach((ncm) => {
-        if (!Array.isArray(ncm.classTrib) || !ncm.classTrib.length) return;
+      // Iterate and normalize classTrib like PDF/XLSX
+      for (const ncm of ncmList) {
+        const classTribs = Array.isArray(ncm.classTrib)
+          ? ncm.classTrib
+          : ncm.classTrib ? [ncm.classTrib] : [];
+        if (!classTribs.length) continue;
 
-        ncm.classTrib.forEach((c) => {
+        for (const c of classTribs) {
           const pRedIBS = parseFloat(c.pRedIBS) || 0;
           const pRedCBS = parseFloat(c.pRedCBS) || 0;
           const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
@@ -307,12 +340,19 @@ if (!ncmList.length) {
           const aliqIBSTxt = zeroCsts.has(cstCode) ? "0%" : aliqIBSVal.toFixed(2) + "%";
           const aliqCBSTxt = zeroCsts.has(cstCode) ? "0%" : aliqCBSVal.toFixed(2) + "%";
 
-          txt += `${ncm.codigo} | ${ncm.descricao.slice(0, 40)} | ${padClas(c.codigoClassTrib) || ""} | ${c.cstIbsCbs || "-"} | ${aliqIBSTxt} | ${aliqCBSTxt}\n`;
-        });
-      });
+          // do not truncate description in TXT; include full description
+          const desc = String(ncm.descricao || "").replace(/\r?\n/g, ' ');
+
+          txt += `${ncm.codigo} | ${desc} | ${padClas(c.codigoClassTrib) || ""} | ${c.cstIbsCbs || "-"} | ${aliqIBSTxt} | ${aliqCBSTxt}\n`;
+        }
+      }
+
+      // footer with generation date
+      txt += "\n";
+      txt += `Gerado em: ${new Date().toLocaleString()}\n`;
 
       res.setHeader("Content-Disposition", 'attachment; filename="relatorio_ncm.txt"');
-      res.setHeader("Content-Type", "text/plain");
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
       return res.send(txt);
     }
 
