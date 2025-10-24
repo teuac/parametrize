@@ -165,8 +165,19 @@ const Card = styled.div`
   background: #1a1a1a;
   border: 1px solid #333;
   border-radius: 12px;
-  padding: 16px;
+  padding: 16px 16px 60px; /* 🔹 extra espaço pro botão no rodapé */
   box-shadow: 0 0 10px rgba(168, 137, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  position: relative;
+  min-height: 360px; /* 🔹 altura aumentada */
+  transition: all 0.25s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 16px rgba(168, 137, 42, 0.15);
+  }
 `;
 
 const Section = styled.div`
@@ -239,9 +250,14 @@ const Footer = styled.div`
 `;
 
 const LawButtonContainer = styled.div`
-  margin-top: 16px;
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  width: 100%;
   display: flex;
   justify-content: center;
+  padding-top: 12px;
+  background: linear-gradient(0deg, rgba(26,26,26,1) 60%, rgba(26,26,26,0) 100%);
 `;
 
 const LawButton = styled.a`
@@ -486,24 +502,34 @@ export default function Dashboard() {
                             </p>
 
                             {isIsento && (
-                              <div
-                                style={{
-                                  marginTop: "8px",
-                                  padding: "6px 10px",
-                                  borderRadius: "6px",
-                                  background: "rgba(168,137,42,0.15)",
-                                  border: "1px solid #a8892a55",
-                                  color: "#f5f5f5",
-                                  fontSize: "0.85rem",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "6px",
-                                }}
-                              >
-                                <span style={{ color: "#a8892a" }}>⚠️</span>
-                                Operação isenta ({cst})
-                              </div>
-                            )}
+  <div
+    style={{
+      marginTop: "8px",
+      padding: "6px 10px",
+      borderRadius: "6px",
+      background: "rgba(168,137,42,0.15)",
+      border: "1px solid #a8892a55",
+      color: "#f5f5f5",
+      fontSize: "0.85rem",
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      flexWrap: "wrap",
+    }}
+  >
+    <span style={{ color: "#a8892a" }}></span>
+    {(() => {
+      const cstText = {
+        "400": "Isenção",
+        "410": "Imunidade / Não incidência",
+        "510": "Diferimento",
+        "550": "Suspensão",
+        "620": "Tributação monofásica",
+      }[cst];
+      return `⚠️ Alíquota Zerada — ${cstText || "Tratamento Tributário Específico"}`;
+    })()}
+  </div>
+)}
                           </AliquotaBox>
 
                           <LawButtonContainer>
