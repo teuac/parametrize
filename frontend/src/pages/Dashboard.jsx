@@ -297,20 +297,15 @@ export default function Dashboard() {
   }, []);
 
   async function fetchSuggestions(value) {
-    if (!value.trim()) {
-      setSuggestions([]);
-      setNoResults(false);
-      return;
-    }
-    try {
-      const { data } = await api.get("/ncm", { params: { q: value } });
-      setSuggestions(data.slice(0, 5));
-      setNoResults(data.length === 0);
-    } catch (err) {
-      console.error("Erro ao buscar sugestões:", err);
-      setNoResults(true);
-    }
+  if (!value.trim()) return setSuggestions([]);
+  try {
+    const { data } = await api.get("/ncm/sugestoes", { params: { q: value } });
+    setSuggestions(data);
+    setNoResults(data.length === 0);
+  } catch (err) {
+    console.error("Erro ao buscar sugestões:", err);
   }
+}
 
   async function searchNcm(code) {
     setQuery(code);
