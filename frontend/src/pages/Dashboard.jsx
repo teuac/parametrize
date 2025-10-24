@@ -520,13 +520,13 @@ export default function Dashboard() {
     <span style={{ color: "#a8892a" }}></span>
     {(() => {
       const cstText = {
-        "400": "Isenção",
-        "410": "Imunidade / Não incidência",
-        "510": "Diferimento",
-        "550": "Suspensão",
-        "620": "Tributação monofásica",
+        "400": "INSENÇÃO",
+        "410": "IMUNIDADE / NÃO INCIDÊNCIA",
+        "510": "DIFERIMENTO",
+        "550": "SUSPENSÃO",
+        "620": "TRIBUTAÇÃO MONOFÁSICA",
       }[cst];
-      return `⚠️ Alíquota Zerada — ${cstText || "Tratamento Tributário Específico"}`;
+      return `${cstText|| "Tratamento Tributário Específico"}`;
     })()}
   </div>
 )}
