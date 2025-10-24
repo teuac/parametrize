@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 
 async function seed() {
   try {
-    const filePath = path.join(__dirname, "../data/NCM_expandido.xlsx");
+    const filePath = path.join(__dirname, "../data/TABELA_NCMS_TRATADA.xlsx");
     const workbook = XLSX.readFile(filePath);
 
     const ncmSheet = XLSX.utils.sheet_to_json(workbook.Sheets["NCM"]);
