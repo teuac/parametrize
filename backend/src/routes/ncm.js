@@ -21,7 +21,7 @@ ncmRouter.get("/", async (req, res) => {
     const query = String(q).replace(/\./g, ""); // remove pontos da busca
 
 const items = await prisma.$queryRaw`
-  SELECT 
+  SELECT DISTINCT ON (n."codigo")
     n.*, 
     json_build_object(
       'codigoClassTrib', c."codigoClassTrib",
@@ -44,8 +44,9 @@ const items = await prisma.$queryRaw`
     REPLACE(n."codigo", '.', '') ILIKE ${`${query}%`}
     OR n."descricao" ILIKE ${`${query}%`}
   ORDER BY 
-    relevance ASC,   -- 🔹 prioridade pra quem começa com o termo
-    n."codigo" ASC   -- 🔹 ordenação natural
+    n."codigo",
+    relevance ASC,
+    n."id" ASC
   LIMIT 50;
 `;
     res.json(items);
