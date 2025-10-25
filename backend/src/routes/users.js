@@ -28,6 +28,7 @@ usersRouter.put('/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+
 usersRouter.delete('/:id', async (req, res) => {
   const id = Number(req.params.id);
   await prisma.user.delete({ where: { id } });
