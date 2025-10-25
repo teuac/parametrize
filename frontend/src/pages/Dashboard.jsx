@@ -34,13 +34,45 @@ const Content = styled.div`
   }
 `;
 
+/* 🔹 NOVOS ESTILOS DO TOPO 🔹 */
+const SearchWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: stretch; /* allow left-aligning the message + search bar */
+  margin-bottom: 40px;
+`;
+
+const InfoMessage = styled.p`
+  color: #aaa;
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+  text-align: center; /* center above the search bar */
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+`;
+
+const SearchContainer = styled.div`
+  position: relative; /* needed so ReportButtons can be absolute-cornered */
+  display: flex;
+  align-items: center;
+  justify-content: center; /* center the search bar */
+  gap: 24px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+`;
+
 const SearchBar = styled.div`
-  position: relative;
-  max-width: 600px;
-  margin: 0 auto 20px;
+  flex: 0 1 auto;
+  width: 100%;
+  max-width: 700px;
   display: flex;
   align-items: center;
   gap: 10px;
+  margin: 0 auto; /* keep the search bar exactly centered */
 
   input {
     flex: 1;
@@ -77,7 +109,57 @@ const SearchBar = styled.div`
     svg {
       height: 20px;
       width: 20px;
+      margin-right: 4px;
     }
+  }
+
+  @media (max-width: 480px) {
+    max-width: 100%;
+    padding: 0 12px;
+  }
+`;
+
+const ReportButtons = styled.div`
+  position: absolute; /* pin to the right corner of SearchContainer */
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%) translateX(80px); /* nudge buttons a bit left compared to before */
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 200px;
+
+  button {
+    background: #a8892a;
+    color: #0b0b0b;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+
+    &:hover {
+      background: #b69733;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  @media (max-width: 700px) {
+    position: static; /* allow wrapping on small screens */
+    transform: none;
+    margin-left: 0;
+    margin-top: 8px;
+    justify-content: center;
+  }
+
+  @media (min-width: 1200px) {
+    transform: translateY(-50%) translateX(160px); /* slightly less push on very wide screens */
   }
 `;
 
@@ -165,13 +247,13 @@ const Card = styled.div`
   background: #1a1a1a;
   border: 1px solid #333;
   border-radius: 12px;
-  padding: 16px 16px 60px; /* 🔹 extra espaço pro botão no rodapé */
+  padding: 16px 16px 60px;
   box-shadow: 0 0 10px rgba(168, 137, 42, 0.08);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   position: relative;
-  min-height: 360px; /* 🔹 altura aumentada */
+  min-height: 360px;
   transition: all 0.25s ease;
 
   &:hover {
@@ -204,49 +286,6 @@ const AliquotaBox = styled.div`
   display: flex;
   flex-direction: column;
   gap: 4px;
-  p {
-    margin: 0;
-  }
-  strong {
-    color: #a8892a;
-  }
-`;
-
-const InfoMessage = styled.p`
-  text-align: center;
-  color: #aaa;
-  font-size: 0.95rem;
-  margin-bottom: 20px;
-`;
-
-const Footer = styled.div`
-  margin-top: 40px;
-  padding-top: 20px;
-  border-top: 1px solid #222;
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  flex-wrap: wrap;
-
-  button {
-    background: #a8892a;
-    color: #0b0b0b;
-    border: none;
-    border-radius: 10px;
-    padding: 10px 18px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: 0.3s;
-
-    &:hover {
-      background: #b69733;
-    }
-
-    &:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-  }
 `;
 
 const LawButtonContainer = styled.div`
@@ -276,11 +315,6 @@ const LawButton = styled.a`
   &:hover {
     background: #b69733;
   }
-
-  &:disabled {
-    opacity: 0.4;
-    pointer-events: none;
-  }
 `;
 
 /* ======= COMPONENT ======= */
@@ -297,15 +331,15 @@ export default function Dashboard() {
   }, []);
 
   async function fetchSuggestions(value) {
-  if (!value.trim()) return setSuggestions([]);
-  try {
-    const { data } = await api.get("/ncm/sugestoes", { params: { q: value } });
-    setSuggestions(data);
-    setNoResults(data.length === 0);
-  } catch (err) {
-    console.error("Erro ao buscar sugestões:", err);
+    if (!value.trim()) return setSuggestions([]);
+    try {
+      const { data } = await api.get("/ncm/sugestoes", { params: { q: value } });
+      setSuggestions(data);
+      setNoResults(data.length === 0);
+    } catch (err) {
+      console.error("Erro ao buscar sugestões:", err);
+    }
   }
-}
 
   async function searchNcm(code) {
     setQuery(code);
@@ -381,23 +415,36 @@ export default function Dashboard() {
       <Layout>
         <Sidebar />
         <Content>
-          <InfoMessage>
-            Digite um código ou descrição de NCM e clique na lupa para buscar.
-          </InfoMessage>
+          {/* 🔹 Campo de busca e botões */}
+          <SearchWrapper>
+            <InfoMessage>
+              Digite um código ou descrição de NCM e clique na lupa para buscar.
+            </InfoMessage>
 
-          <SearchBar>
-            <input
-              placeholder="Buscar por código ou descrição..."
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                fetchSuggestions(e.target.value);
-              }}
-            />
-            <button onClick={() => searchNcm(query)}>
-              <Search /> <strong>Buscar</strong>
-            </button>
-          </SearchBar>
+            <SearchContainer>
+              <SearchBar>
+                <input
+                  placeholder="Buscar por código ou descrição..."
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    fetchSuggestions(e.target.value);
+                  }}
+                />
+                <button onClick={() => searchNcm(query)}>
+                  <Search /> <strong>Buscar</strong>
+                </button>
+              </SearchBar>
+
+              {pinnedCodes.length > 0 && (
+                <ReportButtons>
+                  <button onClick={() => gerarRelatorio("pdf")}>📄 PDF</button>
+                  <button onClick={() => gerarRelatorio("xlsx")}>📊 Excel</button>
+                  <button onClick={() => gerarRelatorio("txt")}>📜 TXT</button>
+                </ReportButtons>
+              )}
+            </SearchContainer>
+          </SearchWrapper>
 
           {/* Sugestões */}
           {query.trim() && (
@@ -428,140 +475,124 @@ export default function Dashboard() {
           )}
 
           {/* Resultados */}
-          {Object.entries(groupedItems)
-            .sort(([a], [b]) => {
-              const aPinned = pinnedCodes.includes(a);
-              const bPinned = pinnedCodes.includes(b);
-              return aPinned === bPinned ? 0 : aPinned ? 1 : -1;
-            })
-            .map(([codigo, group]) => (
-              <NcmGroup key={codigo}>
-                <NcmHeader
-                  pinned={pinnedCodes.includes(codigo)}
-                  onClick={() => togglePin(codigo)}
-                >
-                  <div>
-                    <strong>{codigo}</strong>{" "}
-                    <span className="desc">{group[0].descricao}</span>
-                  </div>
-                  <span>
-                    {pinnedCodes.includes(codigo)
-                      ? "📌 Fixado"
-                      : "📍 Clique para fixar"}
-                  </span>
-                </NcmHeader>
+          {Object.entries(groupedItems).map(([codigo, group]) => (
+            <NcmGroup key={codigo}>
+              <NcmHeader
+                pinned={pinnedCodes.includes(codigo)}
+                onClick={() => togglePin(codigo)}
+              >
+                <div>
+                  <strong>{codigo}</strong>{" "}
+                  <span className="desc">{group[0].descricao}</span>
+                </div>
+                <span>
+                  {pinnedCodes.includes(codigo)
+                    ? "📌 Fixado"
+                    : "📍 Clique para fixar"}
+                </span>
+              </NcmHeader>
 
-                <Grid>
-                  {group.map((item) => {
-                    const { classTrib } = item;
-                    if (!classTrib) return null;
+              <Grid>
+                {group.map((item) => {
+                  const { classTrib } = item;
+                  if (!classTrib) return null;
 
-                    const pRedIBS = parseFloat(classTrib.pRedIBS) || 0;
-                    const pRedCBS = parseFloat(classTrib.pRedCBS) || 0;
-                    const cst = classTrib.cstIbsCbs?.toString();
-                    const cstZerados = ["400", "410", "510", "550", "620"];
-                    const isIsento = cstZerados.includes(cst);
+                  const pRedIBS = parseFloat(classTrib.pRedIBS) || 0;
+                  const pRedCBS = parseFloat(classTrib.pRedCBS) || 0;
+                  const cst = classTrib.cstIbsCbs?.toString();
+                  const cstZerados = ["400", "410", "510", "550", "620"];
+                  const isIsento = cstZerados.includes(cst);
 
-                    const aliquotaIBS = isIsento ? 0 : 0.1 * (1 - pRedIBS / 100);
-                    const aliquotaCBS = isIsento ? 0 : 0.9 * (1 - pRedCBS / 100);
+                  const aliquotaIBS = isIsento ? 0 : 0.1 * (1 - pRedIBS / 100);
+                  const aliquotaCBS = isIsento ? 0 : 0.9 * (1 - pRedCBS / 100);
 
-                    return (
-                      <Card key={`${item.codigo}-${item.cClasstrib}`}>
-                        <Section>
+                  return (
+                    <Card key={`${item.codigo}-${item.cClasstrib}`}>
+                      <Section>
+                        <p>
+                          <strong>CST:</strong> {cst || "—"}
+                        </p>
+                        <p>
+                          <strong>cClasTrib:</strong>{" "}
+                          {classTrib.codigoClassTrib
+                            ?.toString()
+                            .padStart(6, "0")}
+                        </p>
+                        <p>
+                          <strong>Descrição:</strong>{" "}
+                          {classTrib.descricaoClassTrib || "—"}
+                        </p>
+                        <p>
+                          <strong>Redução IBS/CBS:</strong>{" "}
+                          {classTrib.pRedIBS}% / {classTrib.pRedCBS}%
+                        </p>
+
+                        <AliquotaBox>
                           <p>
-                            <strong>CST:</strong> {cst || "—"}
+                            <strong>Alíquota IBS:</strong>{" "}
+                            {aliquotaIBS.toFixed(2)}%
                           </p>
                           <p>
-                            <strong>cClasTrib:</strong>{" "}
-                            {classTrib.codigoClassTrib
-                              ?.toString()
-                              .padStart(6, "0")}
-                          </p>
-                          <p>
-                            <strong>Descrição:</strong>{" "}
-                            {classTrib.descricaoClassTrib || "—"}
-                          </p>
-                          <p>
-                            <strong>Redução IBS/CBS:</strong>{" "}
-                            {classTrib.pRedIBS}% / {classTrib.pRedCBS}%
+                            <strong>Alíquota CBS:</strong>{" "}
+                            {aliquotaCBS.toFixed(2)}%
                           </p>
 
-                          <AliquotaBox>
-                            <p>
-                              <strong>Alíquota IBS:</strong>{" "}
-                              {aliquotaIBS.toFixed(2)}%
-                            </p>
-                            <p>
-                              <strong>Alíquota CBS:</strong>{" "}
-                              {aliquotaCBS.toFixed(2)}%
-                            </p>
-
-                            {isIsento && (
-  <div
-    style={{
-      marginTop: "8px",
-      padding: "6px 10px",
-      borderRadius: "6px",
-      background: "rgba(168,137,42,0.15)",
-      border: "1px solid #a8892a55",
-      color: "#f5f5f5",
-      fontSize: "0.85rem",
-      display: "flex",
-      alignItems: "center",
-      gap: "6px",
-      flexWrap: "wrap",
-    }}
-  >
-    <span style={{ color: "#a8892a" }}></span>
-    {(() => {
-      const cstText = {
-        "400": "INSENÇÃO",
-        "410": "IMUNIDADE / NÃO INCIDÊNCIA",
-        "510": "DIFERIMENTO",
-        "550": "SUSPENSÃO",
-        "620": "TRIBUTAÇÃO MONOFÁSICA",
-      }[cst];
-      return `${cstText|| "Tratamento Tributário Específico"}`;
-    })()}
-  </div>
-)}
-                          </AliquotaBox>
-
-                          <LawButtonContainer>
-                            <LawButton
-                              href={classTrib.link || "#"}
-                              target={classTrib.link ? "_blank" : "_self"}
-                              rel="noopener noreferrer"
+                          {isIsento && (
+                            <div
                               style={{
-                                opacity: classTrib.link ? 1 : 0.5,
-                                cursor: classTrib.link
-                                  ? "pointer"
-                                  : "not-allowed",
+                                marginTop: "8px",
+                                padding: "6px 10px",
+                                borderRadius: "6px",
+                                background: "rgba(168,137,42,0.15)",
+                                border: "1px solid #a8892a55",
+                                color: "#f5f5f5",
+                                fontSize: "0.85rem",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
                               }}
                             >
-                              <BookOpen
-                                size={18}
-                                color="#0b0b0b"
-                                strokeWidth={2}
-                              />
-                              Base Legal - LC 214/25
-                            </LawButton>
-                          </LawButtonContainer>
-                        </Section>
-                      </Card>
-                    );
-                  })}
-                </Grid>
-              </NcmGroup>
-            ))}
+                              {(() => {
+                                const cstText = {
+                                  "400": "ISENÇÃO",
+                                  "410": "IMUNIDADE / NÃO INCIDÊNCIA",
+                                  "510": "DIFERIMENTO",
+                                  "550": "SUSPENSÃO",
+                                  "620": "TRIBUTAÇÃO MONOFÁSICA",
+                                }[cst];
+                                return `${cstText || "Tratamento Tributário Específico"}`;
+                              })()}
+                            </div>
+                          )}
+                        </AliquotaBox>
 
-          {pinnedCodes.length > 0 && (
-            <Footer>
-              <button onClick={() => gerarRelatorio("pdf")}>📄 Gerar PDF</button>
-              <button onClick={() => gerarRelatorio("xlsx")}>📊 Gerar Excel</button>
-              <button onClick={() => gerarRelatorio("txt")}>📜 Gerar TXT</button>
-            </Footer>
-          )}
+                        <LawButtonContainer>
+                          <LawButton
+                            href={classTrib.link || "#"}
+                            target={classTrib.link ? "_blank" : "_self"}
+                            rel="noopener noreferrer"
+                            style={{
+                              opacity: classTrib.link ? 1 : 0.5,
+                              cursor: classTrib.link
+                                ? "pointer"
+                                : "not-allowed",
+                            }}
+                          >
+                            <BookOpen
+                              size={18}
+                              color="#0b0b0b"
+                              strokeWidth={2}
+                            />
+                            Base Legal - LC 214/25
+                          </LawButton>
+                        </LawButtonContainer>
+                      </Section>
+                    </Card>
+                  );
+                })}
+              </Grid>
+            </NcmGroup>
+          ))}
         </Content>
       </Layout>
     </>
