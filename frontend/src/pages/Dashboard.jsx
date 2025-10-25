@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import styled, { createGlobalStyle } from "styled-components";
 import { api } from "../api/http";
 import Sidebar from "../components/Sidebar";
-import { Search, BookOpen } from "lucide-react";
+import { Search, BookOpen, File, FileSpreadsheet, FileText } from "lucide-react";
 
 /* ======= STYLES ======= */
 const Layout = styled.div`
@@ -438,9 +438,15 @@ export default function Dashboard() {
 
               {pinnedCodes.length > 0 && (
                 <ReportButtons>
-                  <button onClick={() => gerarRelatorio("pdf")}>📄 PDF</button>
-                  <button onClick={() => gerarRelatorio("xlsx")}>📊 Excel</button>
-                  <button onClick={() => gerarRelatorio("txt")}>📜 TXT</button>
+                    <button onClick={() => gerarRelatorio("pdf")} aria-label="Gerar PDF">
+                      <File size={16} style={{ marginRight: 8 }} /> PDF
+                    </button>
+                    <button onClick={() => gerarRelatorio("xlsx")} aria-label="Gerar Excel">
+                      <FileSpreadsheet size={16} style={{ marginRight: 8 }} /> Excel
+                    </button>
+                    <button onClick={() => gerarRelatorio("txt")} aria-label="Gerar TXT">
+                      <FileText size={16} style={{ marginRight: 8 }} /> TXT
+                    </button>
                 </ReportButtons>
               )}
             </SearchContainer>

@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
-import { Home, Upload, HelpCircle } from "lucide-react";
+import { Home, Upload, HelpCircle, Settings, LogOut } from "lucide-react";
 import Logo from './Logo'
 
 const SidebarContainer = styled.div`
@@ -77,6 +77,16 @@ const NavButton = styled.button`
   }
 `;
 
+const LogoutButton = styled(NavButton)`
+  color: #ff6b6b;
+  background: transparent;
+
+  &:hover {
+    background: rgba(255, 107, 107, 0.06);
+    color: #ff8b8b;
+  }
+`;
+
 const Footer = styled.div`
   @media (max-width: 768px) {
     display: none;
@@ -102,6 +112,23 @@ const HelpButton = styled.button`
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  // read user from localStorage to determine admin visibility
+  let user = null;
+  try {
+    const raw = localStorage.getItem('user');
+    user = raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    user = null;
+  }
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    } catch (e) {}
+    // navigate to login
+    navigate('/login');
+  };
 
   return (
     <SidebarContainer>
@@ -120,13 +147,27 @@ export default function Sidebar() {
           >
             <Upload /> Importar
           </NavButton>
+          {/* logout button removed from main nav and placed in footer */}
+          {user?.role === 'admin' && (
+            <NavButton
+              active={location.pathname === "/admin"}
+              onClick={() => navigate("/admin")}
+            >
+              <Settings /> Admin
+            </NavButton>
+          )}
         </Nav>
       </div>
 
       <Footer>
-        <HelpButton onClick={() => alert("Ajuda: suporte@parametrizze.com")}>
-          <HelpCircle /> Ajuda
-        </HelpButton>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <LogoutButton onClick={handleLogout}>
+            <LogOut /> Sair
+          </LogoutButton>
+          <HelpButton onClick={() => alert("Ajuda: suporte@parametrizze.com")}>
+            <HelpCircle /> Ajuda
+          </HelpButton>
+        </div>
       </Footer>
     </SidebarContainer>
   );

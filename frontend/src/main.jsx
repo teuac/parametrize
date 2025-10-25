@@ -6,12 +6,14 @@ import Dashboard from './pages/Dashboard.jsx'
 import Admin from './pages/Admin.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import { GlobalStyle } from "./styles/GlobalStyles"; // 👈 importa o estilo global
+import SessionExpiredModal from './components/SessionExpiredModal.jsx'
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <GlobalStyle /> {/* 👈 aplica o estilo global */}
+  <GlobalStyle /> {/* 👈 aplica o estilo global */}
+  <SessionExpiredModal />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
