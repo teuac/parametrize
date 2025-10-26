@@ -80,8 +80,6 @@ if (!ncmList.length) {
     doc.save();
     // baixa opacidade
     if (typeof doc.opacity === 'function') doc.opacity(0.06);
-    // rotaciona ao centro
-    doc.rotate(-45, { origin: [doc.page.width / 2, doc.page.height / 2] });
     try {
       // Use the image as a mask and fill with the company's yellow
       doc.fillColor('#A8892A');
@@ -113,14 +111,21 @@ if (!ncmList.length) {
   }
   // título centralizado (removido o texto 'PARAMETRIZE' e sem fundo preto)
   // descer o título um pouco para evitar sobreposição com a logo
-  doc.fillColor('#A8892A').font('Helvetica-Bold').fontSize(20).text('Classificação Tributária', 0, 30, { align: 'center' });
+  // agora aplicamos um pequeno deslocamento para a direita (em pixels)
+  const titleText = 'Classificação Tributária';
+  doc.fillColor('#A8892A').font('Helvetica-Bold').fontSize(20);
+  const titleWidth = doc.widthOfString(titleText);
+  const shiftRight = 4; // pequeno deslocamento para a direita
+  const titleX = doc.page.width / 2 - titleWidth / 2 + shiftRight;
+  doc.text(titleText, titleX, 50);
   doc.restore();
 
-  doc.moveDown(1.5);
+  // Reduce gap between title and table: smaller moveDown and smaller extra Y offset
+  doc.moveDown(0.6);
 
   // === Tabela ===
   const startX = 40;
-  let y = doc.y + 10;
+  let y = doc.y + 4;
   // compute available width between left startX and right margin (40)
   const availableWidth = doc.page.width - startX - 40; // page width minus left and right margins
   // keep some sensible minimums for small pages
@@ -131,13 +136,13 @@ if (!ncmList.length) {
   // description gets the remaining space
   const colWidths = [
     minCodigo,
-    Math.max(150, availableWidth - (minCodigo + minClas + minCst + minAliq + minAliq)),
-    minClas,
+    Math.max(150, availableWidth - (minCodigo + minCst + minClas + minAliq + minAliq)),
     minCst,
+    minClas,
     minAliq,
     minAliq,
   ];
-  const headers = ["Código", "Descrição", "cClasTrib", "CST", "Aliq IBS", "Aliq CBS"];
+  const headers = ["Código", "Descrição", "CST", "cClasTrib", "Aliq IBS", "Aliq CBS"];
 
   const drawCell = (text, x, y, width, height, align = "left") => {
     doc.rect(x, y, width, height).strokeColor("#999").lineWidth(0.3).stroke();
@@ -148,10 +153,10 @@ if (!ncmList.length) {
   // Cabeçalho da tabela
   doc.font("Helvetica-Bold").fontSize(10).fillColor("#111");
   let x = startX;
-  headers.forEach((h, i) => {
-    drawCell(h, x, y, colWidths[i], 20, "center");
-    x += colWidths[i];
-  });
+      headers.forEach((h, i) => {
+        drawCell(h, x, y, colWidths[i], 20, "center");
+        x += colWidths[i];
+      });
 
   y += 20;
   doc.font("Helvetica").fontSize(9).fillColor("#000");
@@ -216,13 +221,13 @@ if (!ncmList.length) {
         doc.font("Helvetica").fontSize(9);
       }
 
-      x = startX;
-      drawCell(ncm.codigo, x, y, colWidths[0], rowHeight);
-      drawCell(String(ncm.descricao || ""), (x += colWidths[0]), y, colWidths[1], rowHeight);
-  drawCell(String(formattedClas || ""), (x += colWidths[1]), y, colWidths[2], rowHeight);
-      drawCell(c.cstIbsCbs || "-", (x += colWidths[2]), y, colWidths[3], rowHeight, "center");
-      drawCell(aliqIBS, (x += colWidths[3]), y, colWidths[4], rowHeight, "center");
-      drawCell(aliqCBS, (x += colWidths[4]), y, colWidths[5], rowHeight, "center");
+    x = startX;
+    drawCell(ncm.codigo, x, y, colWidths[0], rowHeight);
+    drawCell(String(ncm.descricao || ""), (x += colWidths[0]), y, colWidths[1], rowHeight);
+    drawCell(c.cstIbsCbs || "-", (x += colWidths[1]), y, colWidths[2], rowHeight, "center");
+  drawCell(String(formattedClas || ""), (x += colWidths[2]), y, colWidths[3], rowHeight);
+    drawCell(aliqIBS, (x += colWidths[3]), y, colWidths[4], rowHeight, "center");
+    drawCell(aliqCBS, (x += colWidths[4]), y, colWidths[5], rowHeight, "center");
 
       y += rowHeight;
     }
@@ -254,40 +259,55 @@ if (!ncmList.length) {
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet("Relatório NCM");
 
-      // try to add logo at the top-left
-      try {
-        if (fs.existsSync(logoPath)) {
-          const imageId = workbook.addImage({ filename: logoPath, extension: 'png' });
-          sheet.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: 160, height: 60 } });
+      
+        // add a large watermark-like image (centered) and a small logo at top-left
+        try {
+          if (fs.existsSync(logoPath)) {
+            const wmId = workbook.addImage({ filename: logoPath, extension: 'png' });
+            // place watermark covering many columns/rows (approx center)
+            sheet.addImage(wmId, { tl: { col: 1, row: 3 }, br: { col: 10, row: 40 } });
+
+            // small logo at top-left (like PDF header)
+            const logoSmallId = workbook.addImage({ filename: logoPath, extension: 'png' });
+            sheet.addImage(logoSmallId, { tl: { col: 0, row: 0 }, ext: { width: 160, height: 50 } });
+          }
+        } catch (e) {
+          // ignore image errors
         }
-      } catch (e) {
-        // ignore image errors
-      }
 
-      // add centered title near the top
-      sheet.mergeCells('C1:F2');
-      const titleCell = sheet.getCell('C1');
-      titleCell.value = 'Classificação Tributária';
-      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-      titleCell.font = { name: 'Helvetica', size: 14, bold: true, color: { argb: 'FFA8892A' } };
+    // prepare columns to match the PDF exactly (CST before cClasTrib)
+    sheet.columns = [
+      { header: 'Código', key: 'codigo', width: 15 },
+      { header: 'Descrição', key: 'descricao', width: 50 },
+      { header: 'CST', key: 'cst', width: 12 },
+      { header: 'cClasTrib', key: 'cClasTrib', width: 15 },
+      { header: 'Aliquota IBS', key: 'aliqIBS', width: 14 },
+      { header: 'Aliquota CBS', key: 'aliqCBS', width: 14 },
+    ];
 
-      // prepare columns (table headers)
-      sheet.columns = [
-        { header: 'Código', key: 'codigo', width: 15 },
-        { header: 'Descrição', key: 'descricao', width: 40 },
-        { header: 'cClasTrib', key: 'cClasTrib', width: 15 },
-        { header: 'CST', key: 'cst', width: 12 },
-        { header: 'Redução IBS', key: 'pRedIBS', width: 12 },
-        { header: 'Redução CBS', key: 'pRedCBS', width: 12 },
-        { header: 'Aliquota IBS', key: 'aliqIBS', width: 12 },
-        { header: 'Aliquota CBS', key: 'aliqCBS', width: 12 },
-      ];
+    // add centered title near the top (similar to PDF)
+    // keep the small logo in column A and merge the title across the remaining columns
+    const lastCol = String.fromCharCode('A'.charCodeAt(0) + sheet.columns.length - 1);
+    const titleStart = 'B1';
+    const titleEnd = `${lastCol}2`;
+    sheet.mergeCells(`${titleStart}:${titleEnd}`);
+    const titleCell = sheet.getCell(titleStart);
+    titleCell.value = 'Classificação Tributária';
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    // use a larger font to better match the PDF title
+    titleCell.font = { name: 'Helvetica', size: 20, bold: true, color: { argb: 'FFA8892A' } };
 
-      // leave a blank row under title/image
-      sheet.addRow([]);
-      // header row
-      const headerRow = sheet.addRow(sheet.columns.map(c => c.header));
-      headerRow.font = { bold: true };
+        // leave a blank row under title/image and then header row
+        sheet.addRow([]);
+        const headerRow = sheet.addRow(sheet.columns.map(c => c.header));
+        headerRow.eachCell((cell) => {
+          cell.font = { bold: true };
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          cell.border = {
+            top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' }
+          };
+          cell.fill = { type: 'pattern', pattern:'solid', fgColor:{argb:'FFF2F2F2'} };
+        });
 
       // write data: normalize classTrib to an array like PDF and apply same logic
       for (const ncm of ncmList) {
@@ -313,8 +333,8 @@ if (!ncmList.length) {
           sheet.addRow({
             codigo: ncm.codigo,
             descricao: ncm.descricao,
-            cClasTrib: padClas(c.codigoClassTrib),
             cst: c.cstIbsCbs,
+            cClasTrib: padClas(c.codigoClassTrib),
             pRedIBS: `${pRedIBS}%`,
             pRedCBS: `${pRedCBS}%`,
             aliqIBS: aliqIBSStr,
@@ -335,7 +355,7 @@ if (!ncmList.length) {
     if (formatoLimpo === "txt") {
       // Build TXT header
       let txt = "RELATÓRIO DE NCMs FIXADOS - PARAMETRIZZE\n\n";
-      txt += "Código | Descrição | cClasTrib | CST | Aliq IBS | Aliq CBS\n";
+  txt += "Código | Descrição | CST | cClasTrib | Aliq IBS | Aliq CBS\n";
       txt += "-------------------------------------------------------------------\n";
 
       // Iterate and normalize classTrib like PDF/XLSX
@@ -362,7 +382,7 @@ if (!ncmList.length) {
           // do not truncate description in TXT; include full description
           const desc = String(ncm.descricao || "").replace(/\r?\n/g, ' ');
 
-          txt += `${ncm.codigo} | ${desc} | ${padClas(c.codigoClassTrib) || ""} | ${c.cstIbsCbs || "-"} | ${aliqIBSTxt} | ${aliqCBSTxt}\n`;
+          txt += `${ncm.codigo} | ${desc} | ${c.cstIbsCbs || "-"} | ${padClas(c.codigoClassTrib) || ""} | ${aliqIBSTxt} | ${aliqCBSTxt}\n`;
         }
       }
 
