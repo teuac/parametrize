@@ -148,10 +148,9 @@ const Subtitle = styled.p`
 `;
 
 const Input = styled.input`
-  width: 90%;
-  max-width: 320px;
+  width: 100%;
   padding: 12px 16px;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   border-radius: 10px;
   border: 1px solid #333;
   background: #1a1a1a;
@@ -163,6 +162,21 @@ const Input = styled.input`
     border-color: #A8892A;
     outline: none;
   }
+`;
+
+const PasswordRow = styled.div`
+  width: 90%;
+  max-width: 320px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+`;
+
+const FormRow = styled.div`
+  width: 90%;
+  max-width: 320px;
+  margin-bottom: 8px;
 `;
 
 const Button = styled.button`
@@ -242,18 +256,27 @@ export default function Login() {
         <Title>Bem Vindo</Title>
         <Subtitle>Entre com suas credenciais</Subtitle>
         <Form onSubmit={submit}>
-          <Input
-            type="email"
-            placeholder="E-mail"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <Input
-            type="password"
-            placeholder="Senha"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <FormRow>
+            <Input
+              type="email"
+              placeholder="E-mail"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </FormRow>
+
+          <FormRow style={{ marginBottom: 6 }}>
+            <Input
+              type="password"
+              placeholder="Senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <div style={{ marginTop: 4, textAlign: 'left' }}>
+              <a href="/recover" style={{ color: '#A8892A', fontSize: '0.9rem', textDecoration: 'none' }}>Esqueci a minha senha</a>
+            </div>
+          </FormRow>
+
           <Button type="submit">Entrar</Button>
         </Form>
         {err && <ErrorMsg>{err}</ErrorMsg>}
