@@ -56,6 +56,11 @@ if (!ncmList.length) {
     // ===================================================================
     // 🧾 === GERAÇÃO DO PDF ===
     // ===================================================================
+  // parse optional `selected` query param which may contain items like '1234-000001' or '1234-ALL'
+  const selectedRaw = (req.query.selected || '').toString();
+  const selectedArr = selectedRaw ? selectedRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const selectedAllSet = new Set(selectedArr.filter(s => s.endsWith('-ALL')).map(s => s.replace(/-ALL$/, '')));
+  const selectedKeysSet = new Set(selectedArr.filter(s => !s.endsWith('-ALL')));
     if (formato === "pdf") {
   const tmpDir = path.resolve("tmp");
   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
@@ -152,7 +157,7 @@ if (!ncmList.length) {
   doc.font("Helvetica").fontSize(9).fillColor("#000");
 
   // === Linhas ===
-  for (const ncm of ncmList) {
+    for (const ncm of ncmList) {
     // normalize classTrib to an array for consistent iteration
     const classTribs = Array.isArray(ncm.classTrib)
       ? ncm.classTrib
@@ -160,6 +165,12 @@ if (!ncmList.length) {
     if (!classTribs.length) continue;
 
     for (const c of classTribs) {
+      // determine whether to include this classTrib based on selection
+      const compositeKey = `${ncm.codigo}-${c.codigoClassTrib}`;
+      if (selectedArr.length) {
+        // if this NCM code is selected as ALL, keep it; otherwise require exact composite key
+        if (!selectedAllSet.has(ncm.codigo) && !selectedKeysSet.has(compositeKey)) continue;
+      }
       const pRedIBS = parseFloat(c.pRedIBS) || 0;
       const pRedCBS = parseFloat(c.pRedCBS) || 0;
       const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
@@ -286,6 +297,10 @@ if (!ncmList.length) {
         if (!classTribs.length) continue;
 
         for (const c of classTribs) {
+          const compositeKey = `${ncm.codigo}-${c.codigoClassTrib}`;
+          if (selectedArr.length) {
+            if (!selectedAllSet.has(ncm.codigo) && !selectedKeysSet.has(compositeKey)) continue;
+          }
           const pRedIBS = parseFloat(c.pRedIBS) || 0;
           const pRedCBS = parseFloat(c.pRedCBS) || 0;
           const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);
@@ -331,6 +346,10 @@ if (!ncmList.length) {
         if (!classTribs.length) continue;
 
         for (const c of classTribs) {
+          const compositeKey = `${ncm.codigo}-${c.codigoClassTrib}`;
+          if (selectedArr.length) {
+            if (!selectedAllSet.has(ncm.codigo) && !selectedKeysSet.has(compositeKey)) continue;
+          }
           const pRedIBS = parseFloat(c.pRedIBS) || 0;
           const pRedCBS = parseFloat(c.pRedCBS) || 0;
           const aliqIBSVal = 0.10 * (1 - pRedIBS / 100);

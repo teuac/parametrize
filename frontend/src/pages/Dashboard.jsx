@@ -324,6 +324,8 @@ export default function Dashboard() {
   const [noResults, setNoResults] = useState(false);
   const [items, setItems] = useState([]);
   const [pinnedCodes, setPinnedCodes] = useState([]);
+  const [selectedCards, setSelectedCards] = useState([]); // array of `${codigo}-${cClas}`
+  const [selectedAllCodes, setSelectedAllCodes] = useState([]); // array of codigo strings where all cards selected
 
   useEffect(() => {
     document.documentElement.classList.add("app-full-bleed");
@@ -347,9 +349,9 @@ export default function Dashboard() {
     setNoResults(false);
     try {
       const { data } = await api.get("/ncm", { params: { q: code } });
-  const pinnedItems = items.filter((i) => pinnedCodes.includes(i.codigo));
-  // Show newly searched items first, then keep pinned items afterwards
-  const combined = [...data, ...pinnedItems];
+      const pinnedItems = items.filter((i) => pinnedCodes.includes(i.codigo));
+      // Show newly searched items first, then keep pinned items afterwards
+      const combined = [...data, ...pinnedItems];
       const unique = Array.from(
         new Map(combined.map((i) => [`${i.codigo}-${i.cClasstrib}`, i])).values()
       );
@@ -367,16 +369,78 @@ export default function Dashboard() {
     );
   }
 
+  function toggleSelectCard(codigo, classCodigo) {
+    const key = `${codigo}-${classCodigo}`;
+    setSelectedCards((prev) => {
+      if (prev.includes(key)) {
+        // unselect -> also unpin this card's code if it was pinned only because of selection
+        const next = prev.filter((p) => p !== key);
+        // remove pin for this codigo if no other selected card remains for it and it wasn't pinned manually
+        const stillSelectedForCode = next.some((k) => k.startsWith(`${codigo}-`));
+        if (!stillSelectedForCode) {
+          setPinnedCodes((pc) => pc.filter((c) => c !== codigo));
+        }
+        return next;
+      }
+      // select -> add and also pin the codigo
+      setPinnedCodes((pc) => (pc.includes(codigo) ? pc : [...pc, codigo]));
+      return [...prev, key];
+    });
+  }
+
+  function toggleSelectAll(codigo) {
+    setSelectedAllCodes((prev) => {
+      if (prev.includes(codigo)) {
+        // unselect all: remove any individual selections for this codigo and unpin
+        setSelectedCards((cards) => cards.filter((k) => !k.startsWith(`${codigo}-`)));
+        setPinnedCodes((pc) => pc.filter((c) => c !== codigo));
+        return prev.filter((c) => c !== codigo);
+      }
+      // select all: add code to selectedAll and pin it
+      setPinnedCodes((pc) => (pc.includes(codigo) ? pc : [...pc, codigo]));
+      return [...prev, codigo];
+    });
+  }
+
   async function gerarRelatorio(formato) {
-    if (pinnedCodes.length === 0) {
-      alert("Nenhum NCM fixado para gerar relatório.");
+    // build the set of NCM codes to request: union of pinned codes + selectedAllCodes + codes from selectedCards
+    const codesSet = new Set([...(pinnedCodes || []), ...(selectedAllCodes || [])]);
+    (selectedCards || []).forEach((k) => {
+      const code = k.split("-")[0];
+      if (code) codesSet.add(code);
+    });
+
+    if (codesSet.size === 0) {
+      alert("Nenhum NCM selecionado para gerar relatório.");
       return;
     }
 
-    const params = new URLSearchParams({
-      codigos: pinnedCodes.join(","),
-      formato,
+    const codigosArr = Array.from(codesSet);
+
+    // build selected parameter: include codes marked as ALL as `${code}-ALL`, and individual selected cards
+    const selectedParams = [];
+    (selectedAllCodes || []).forEach((c) => selectedParams.push(`${c}-ALL`));
+    (selectedCards || []).forEach((k) => {
+      const code = k.split("-")[0];
+      if (!selectedAllCodes.includes(code)) selectedParams.push(k);
     });
+
+    // IMPORTANT: if user pinned a NCM header (in pinnedCodes) but didn't explicitly
+    // select any card for it (and didn't mark it as selectedAll), we still want to
+    // include all cards for that pinned NCM in the report. To achieve that, add
+    // `${code}-ALL` for pinned codes that don't have individual selections nor are
+    // already in selectedAllCodes.
+    (pinnedCodes || []).forEach((code) => {
+      const hasIndividual = (selectedCards || []).some((k) => k.startsWith(`${code}-`));
+      const alreadyAll = (selectedAllCodes || []).includes(code);
+      const alreadyInParams = selectedParams.some((p) => p.startsWith(`${code}-`));
+      if (!hasIndividual && !alreadyAll && !alreadyInParams) {
+        selectedParams.push(`${code}-ALL`);
+      }
+    });
+
+    const params = new URLSearchParams({ codigos: codigosArr.join(","), formato });
+    if (selectedParams.length) params.set("selected", selectedParams.join(","));
 
     const url = `${api.defaults.baseURL}/relatorio?${params.toString()}`;
 
@@ -488,7 +552,13 @@ export default function Dashboard() {
                 pinned={pinnedCodes.includes(codigo)}
                 onClick={() => togglePin(codigo)}
               >
-                <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedAllCodes.includes(codigo)}
+                    onChange={(e) => { e.stopPropagation(); toggleSelectAll(codigo); }}
+                    title={selectedAllCodes.includes(codigo) ? 'Desmarcar todos' : 'Marcar todos'}
+                  />
                   <strong>{codigo}</strong>{" "}
                   <span className="desc">{group[0].descricao}</span>
                 </div>
@@ -510,6 +580,9 @@ export default function Dashboard() {
                   const { classTrib } = item;
                   if (!classTrib) return null;
 
+                  const classKey = classTrib.codigoClassTrib || item.cClasstrib || classTrib.id || '';
+                  const compositeKey = `${item.codigo}-${classKey}`;
+
                   const pRedIBS = parseFloat(classTrib.pRedIBS) || 0;
                   const pRedCBS = parseFloat(classTrib.pRedCBS) || 0;
                   const cst = classTrib.cstIbsCbs?.toString();
@@ -520,7 +593,15 @@ export default function Dashboard() {
                   const aliquotaCBS = isIsento ? 0 : 0.9 * (1 - pRedCBS / 100);
 
                   return (
-                    <Card key={`${item.codigo}-${item.cClasstrib}`}>
+                    <Card key={compositeKey}>
+                      <div style={{ position: 'absolute', top: 10, right: 10 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedAllCodes.includes(item.codigo) || selectedCards.includes(compositeKey)}
+                          onChange={(e) => { e.stopPropagation(); toggleSelectCard(item.codigo, classKey); }}
+                          title={selectedAllCodes.includes(item.codigo) ? 'Todos selecionados' : (selectedCards.includes(compositeKey) ? 'Desmarcar' : 'Selecionar')}
+                        />
+                      </div>
                       <Section>
                         <p>
                           <strong>CST:</strong> {cst || "—"}
