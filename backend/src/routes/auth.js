@@ -16,8 +16,13 @@ authRouter.post('/login', async (req, res) => {
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) return res.status(400).json({ error: 'Credenciais inválidas' });
 
+  // Check if user is active
+  if (user.active === false) {
+    return res.status(403).json({ error: 'Conta inativa. Entre em contato com o administrador do sistema.' });
+  }
+
   const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '8h' });
-  res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email } });
+  res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, active: user.active } });
 });
 
 // POST /auth/forgot -> send password reset link (if user exists)

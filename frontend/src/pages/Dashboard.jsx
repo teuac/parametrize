@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import styled, { createGlobalStyle } from "styled-components";
 import { api } from "../api/http";
 import Sidebar from "../components/Sidebar";
-import { Search, BookOpen, File, FileSpreadsheet, FileText, Pin, MapPin } from "lucide-react";
+import { Search, BookOpen, File, FileSpreadsheet, FileText, Pin, MapPin, AlertTriangle } from "lucide-react";
 
 /* ======= STYLES ======= */
 const Layout = styled.div`
@@ -675,7 +675,13 @@ export default function Dashboard() {
                                   "550": "SUSPENSÃO",
                                   "620": "TRIBUTAÇÃO MONOFÁSICA",
                                 }[cst];
-                                return `${cstText || "Tratamento Tributário Específico"}`;
+                                const text = cstText || "Tratamento Tributário Específico";
+                                return (
+                                  <>
+                                    <AlertTriangle size={14} color="#a8892a" style={{ marginRight: 8 }} />
+                                    {text}
+                                  </>
+                                );
                               })()}
                             </div>
                           )}

@@ -158,7 +158,7 @@ export default function UsersCrud(){
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name:'', email:'', password:'', role:'user' });
+  const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true });
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -171,13 +171,13 @@ export default function UsersCrud(){
 
   useEffect(()=>{ fetchUsers() }, []);
 
-  const openNew = () => { setEditing(null); setForm({ name:'', email:'', password:'', role:'user' }); setModalOpen(true) };
-  const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role }); setModalOpen(true) };
+  const openNew = () => { setEditing(null); setForm({ name:'', email:'', password:'', role:'user', active: true }); setModalOpen(true) };
+  const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role, active: u.active ?? true }); setModalOpen(true) };
 
   const save = async () => {
     try{
       if(editing){
-        await api.put(`/users/${editing.id}`, { name: form.name, email: form.email, ...(form.password?{password:form.password}:{}), role: form.role });
+        await api.put(`/users/${editing.id}`, { name: form.name, email: form.email, ...(form.password?{password:form.password}:{}), role: form.role, active: form.active });
       }else{
         await api.post('/users', form);
       }
@@ -210,7 +210,8 @@ export default function UsersCrud(){
               <tr>
                 <Th>Nome</Th>
                 <Th>E-mail</Th>
-                <Th>Role</Th>
+                  <Th>Role</Th>
+                  <Th>Status</Th>
                 <Th>Criado em</Th>
                 <Th></Th>
               </tr>
@@ -223,6 +224,7 @@ export default function UsersCrud(){
                   <Td>{u.name}</Td>
                   <Td>{u.email}</Td>
                   <Td>{u.role}</Td>
+                  <Td>{u.active ? 'Ativo' : 'Inativo'}</Td>
                   <Td>{new Date(u.createdAt).toLocaleString()}</Td>
                   <Td>
                     <Actions>
@@ -263,6 +265,13 @@ export default function UsersCrud(){
               <Select value={form.role} onChange={e=>setForm({...form, role:e.target.value})}>
                 <option value="user">Usuário</option>
                 <option value="admin">Admin</option>
+              </Select>
+            </Field>
+            <Field>
+              <label>Status</label>
+              <Select value={form.active ? 'active' : 'inactive'} onChange={e=>setForm({...form, active: e.target.value === 'active'})}>
+                <option value="active">Ativo</option>
+                <option value="inactive">Inativo</option>
               </Select>
             </Field>
 

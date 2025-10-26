@@ -9,14 +9,14 @@ export const usersRouter = Router();
 usersRouter.use(ensureAuth, ensureAdmin);
 
 usersRouter.get('/', async (_, res) => {
-  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, createdAt: true } });
+  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, active: true, createdAt: true } });
   res.json(users);
 });
 
 usersRouter.post('/', async (req, res) => {
-  const { name, email, password, role = Role.user } = req.body;
+  const { name, email, password, role = Role.user, active = true } = req.body;
   const hash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({ data: { name, email, password: hash, role } });
+  const user = await prisma.user.create({ data: { name, email, password: hash, role, active } });
   res.status(201).json({ id: user.id });
 });
 
@@ -24,10 +24,10 @@ usersRouter.put('/:id', async (req, res) => {
   const id = Number(req.params.id);
   const data = { ...req.body };
   if (data.password) data.password = await bcrypt.hash(data.password, 10);
+  // allow updating active field as boolean
   await prisma.user.update({ where: { id }, data });
   res.json({ ok: true });
 });
-
 
 usersRouter.delete('/:id', async (req, res) => {
   const id = Number(req.params.id);
