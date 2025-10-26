@@ -324,6 +324,7 @@ export default function Dashboard() {
   const [noResults, setNoResults] = useState(false);
   const [items, setItems] = useState([]);
   const [pinnedCodes, setPinnedCodes] = useState([]);
+  const [headerPinnedCodes, setHeaderPinnedCodes] = useState([]); // codes pinned via header click
   const [selectedCards, setSelectedCards] = useState([]); // array of `${codigo}-${cClas}`
   const [selectedAllCodes, setSelectedAllCodes] = useState([]); // array of codigo strings where all cards selected
 
@@ -362,11 +363,22 @@ export default function Dashboard() {
   }
 
   function togglePin(codigo) {
-    setPinnedCodes((prev) =>
-      prev.includes(codigo)
-        ? prev.filter((c) => c !== codigo)
-        : [...prev, codigo]
-    );
+    setHeaderPinnedCodes((prev) => {
+      if (prev.includes(codigo)) {
+        // unpin header
+        const next = prev.filter((c) => c !== codigo);
+        // recompute pinnedCodes: remove codigo unless it's selected by cards or selectedAll
+        setPinnedCodes((pc) => {
+          const stillHas = (selectedAllCodes || []).includes(codigo) || (selectedCards || []).some(k => k.startsWith(`${codigo}-`));
+          if (stillHas) return pc.includes(codigo) ? pc : [...pc, codigo];
+          return pc.filter((c) => c !== codigo);
+        });
+        return next;
+      }
+      // pin header
+      setPinnedCodes((pc) => (pc.includes(codigo) ? pc : [...pc, codigo]));
+      return [...prev, codigo];
+    });
   }
 
   function toggleSelectCard(codigo, classCodigo) {
@@ -563,15 +575,18 @@ export default function Dashboard() {
                   <span className="desc">{group[0].descricao}</span>
                 </div>
                 <span>
-                  {pinnedCodes.includes(codigo) ? (
+                  {headerPinnedCodes.includes(codigo) || selectedAllCodes.includes(codigo) ? (
                     <>
-                      <Pin size={16} style={{ marginRight: 8 }} /> Fixado
+                      <Pin size={16} style={{ marginRight: 8 }} /> Fixado: todos
                     </>
-                  ) : (
-                    <>
-                      <MapPin size={16} style={{ marginRight: 8 }} /> Clique para fixar
-                    </>
-                  )}
+                  ) : (() => {
+                    const count = (selectedCards || []).filter(k => k.startsWith(`${codigo}-`)).length;
+                    if (count > 0) {
+                      return (<><Pin size={16} style={{ marginRight: 8 }} /> Fixado: {count}</>);
+                    }
+                    return (<><MapPin size={16} style={{ marginRight: 8 }} /> Clique para fixar</>);
+                  })()
+                  }
                 </span>
               </NcmHeader>
 
