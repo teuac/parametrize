@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import styled, { createGlobalStyle } from "styled-components";
 import { api } from "../api/http";
 import Sidebar from "../components/Sidebar";
-import { Search, BookOpen, File, FileSpreadsheet, FileText } from "lucide-react";
+import { Search, BookOpen, File, FileSpreadsheet, FileText, Pin, MapPin } from "lucide-react";
 
 /* ======= STYLES ======= */
 const Layout = styled.div`
@@ -347,8 +347,9 @@ export default function Dashboard() {
     setNoResults(false);
     try {
       const { data } = await api.get("/ncm", { params: { q: code } });
-      const pinnedItems = items.filter((i) => pinnedCodes.includes(i.codigo));
-      const combined = [...pinnedItems, ...data];
+  const pinnedItems = items.filter((i) => pinnedCodes.includes(i.codigo));
+  // Show newly searched items first, then keep pinned items afterwards
+  const combined = [...data, ...pinnedItems];
       const unique = Array.from(
         new Map(combined.map((i) => [`${i.codigo}-${i.cClasstrib}`, i])).values()
       );
@@ -492,9 +493,15 @@ export default function Dashboard() {
                   <span className="desc">{group[0].descricao}</span>
                 </div>
                 <span>
-                  {pinnedCodes.includes(codigo)
-                    ? "📌 Fixado"
-                    : "📍 Clique para fixar"}
+                  {pinnedCodes.includes(codigo) ? (
+                    <>
+                      <Pin size={16} style={{ marginRight: 8 }} /> Fixado
+                    </>
+                  ) : (
+                    <>
+                      <MapPin size={16} style={{ marginRight: 8 }} /> Clique para fixar
+                    </>
+                  )}
                 </span>
               </NcmHeader>
 
