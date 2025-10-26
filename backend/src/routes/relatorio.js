@@ -257,59 +257,63 @@ if (!ncmList.length) {
     // ===================================================================
     if (formatoLimpo === "xlsx") {
       const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet("Relatório NCM");
+      const templatePath = path.resolve(__dirname, '..', 'utils', 'modelo relatiorio excel.xlsx');
 
-      
-        // add a large watermark-like image (centered) and a small logo at top-left
-        try {
-          if (fs.existsSync(logoPath)) {
-            const wmId = workbook.addImage({ filename: logoPath, extension: 'png' });
-            // place watermark covering many columns/rows (approx center)
-            sheet.addImage(wmId, { tl: { col: 1, row: 3 }, br: { col: 10, row: 40 } });
+      // Try to load the template if it exists; otherwise create a fresh workbook
+      if (fs.existsSync(templatePath)) {
+        await workbook.xlsx.readFile(templatePath);
+      } else {
+        // fallback: create a simple sheet similar to PDF
+        const sheetFallback = workbook.addWorksheet('Relatório NCM');
+        sheetFallback.columns = [
+          { header: 'Código', key: 'codigo', width: 15 },
+          { header: 'Descrição', key: 'descricao', width: 50 },
+          { header: 'CST', key: 'cst', width: 12 },
+          { header: 'cClasTrib', key: 'cClasTrib', width: 15 },
+          { header: 'Aliquota IBS', key: 'aliqIBS', width: 14 },
+          { header: 'Aliquota CBS', key: 'aliqCBS', width: 14 },
+        ];
+      }
 
-            // small logo at top-left (like PDF header)
-            const logoSmallId = workbook.addImage({ filename: logoPath, extension: 'png' });
-            sheet.addImage(logoSmallId, { tl: { col: 0, row: 0 }, ext: { width: 160, height: 50 } });
-          }
-        } catch (e) {
-          // ignore image errors
+      const sheet = workbook.worksheets[0];
+
+      // find header row by scanning for the 'Código' header
+      let headerRowIndex = null;
+      for (let r = 1; r <= sheet.rowCount; r++) {
+        const firstCell = sheet.getRow(r).getCell(1).value;
+        if (firstCell && String(firstCell).trim() === 'Código') {
+          headerRowIndex = r;
+          break;
         }
+      }
+      if (!headerRowIndex) {
+        // fallback: try to find any header row that contains 'Descrição'
+        for (let r = 1; r <= sheet.rowCount; r++) {
+          const row = sheet.getRow(r);
+          const vals = row.values || [];
+          if (vals.some(v => typeof v === 'string' && v.includes('Descrição'))) {
+            headerRowIndex = r;
+            break;
+          }
+        }
+      }
+      if (!headerRowIndex) headerRowIndex = 6; // final fallback
 
-    // prepare columns to match the PDF exactly (CST before cClasTrib)
-    sheet.columns = [
-      { header: 'Código', key: 'codigo', width: 15 },
-      { header: 'Descrição', key: 'descricao', width: 50 },
-      { header: 'CST', key: 'cst', width: 12 },
-      { header: 'cClasTrib', key: 'cClasTrib', width: 15 },
-      { header: 'Aliquota IBS', key: 'aliqIBS', width: 14 },
-      { header: 'Aliquota CBS', key: 'aliqCBS', width: 14 },
-    ];
+      // remove existing data rows after header
+      for (let i = sheet.rowCount; i > headerRowIndex; i--) {
+        sheet.spliceRows(i, 1);
+      }
 
-    // add centered title near the top (similar to PDF)
-    // keep the small logo in column A and merge the title across the remaining columns
-    const lastCol = String.fromCharCode('A'.charCodeAt(0) + sheet.columns.length - 1);
-    const titleStart = 'B1';
-    const titleEnd = `${lastCol}2`;
-    sheet.mergeCells(`${titleStart}:${titleEnd}`);
-    const titleCell = sheet.getCell(titleStart);
-    titleCell.value = 'Classificação Tributária';
-    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-    // use a larger font to better match the PDF title
-    titleCell.font = { name: 'Helvetica', size: 20, bold: true, color: { argb: 'FFA8892A' } };
+      const headerRow = sheet.getRow(headerRowIndex);
+      // build header->colIndex map
+      const colMap = {};
+      for (let c = 1; c <= sheet.columnCount; c++) {
+        const h = headerRow.getCell(c).value;
+        if (h) colMap[String(h).trim()] = c;
+      }
 
-        // leave a blank row under title/image and then header row
-        sheet.addRow([]);
-        const headerRow = sheet.addRow(sheet.columns.map(c => c.header));
-        headerRow.eachCell((cell) => {
-          cell.font = { bold: true };
-          cell.alignment = { horizontal: 'center', vertical: 'middle' };
-          cell.border = {
-            top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' }
-          };
-          cell.fill = { type: 'pattern', pattern:'solid', fgColor:{argb:'FFF2F2F2'} };
-        });
-
-      // write data: normalize classTrib to an array like PDF and apply same logic
+      // start inserting data right below header
+      let insertAt = headerRowIndex + 1;
       for (const ncm of ncmList) {
         const classTribs = Array.isArray(ncm.classTrib)
           ? ncm.classTrib
@@ -330,16 +334,18 @@ if (!ncmList.length) {
           const aliqIBSStr = zeroCsts.has(cstCode) ? '0%' : aliqIBSVal.toFixed(2) + '%';
           const aliqCBSStr = zeroCsts.has(cstCode) ? '0%' : aliqCBSVal.toFixed(2) + '%';
 
-          sheet.addRow({
-            codigo: ncm.codigo,
-            descricao: ncm.descricao,
-            cst: c.cstIbsCbs,
-            cClasTrib: padClas(c.codigoClassTrib),
-            pRedIBS: `${pRedIBS}%`,
-            pRedCBS: `${pRedCBS}%`,
-            aliqIBS: aliqIBSStr,
-            aliqCBS: aliqCBSStr,
-          });
+          // build a 1-based array where index matches column number
+          const rowVals = [];
+          if (colMap['Código']) rowVals[colMap['Código']] = ncm.codigo;
+          if (colMap['Descrição']) rowVals[colMap['Descrição']] = ncm.descricao;
+          if (colMap['CST']) rowVals[colMap['CST']] = c.cstIbsCbs || '-';
+          if (colMap['cClasTrib']) rowVals[colMap['cClasTrib']] = padClas(c.codigoClassTrib);
+          if (colMap['Aliquota IBS']) rowVals[colMap['Aliquota IBS']] = aliqIBSStr;
+          if (colMap['Aliquota CBS']) rowVals[colMap['Aliquota CBS']] = aliqCBSStr;
+
+          // insert row at position
+          sheet.spliceRows(insertAt, 0, rowVals);
+          insertAt++;
         }
       }
 
