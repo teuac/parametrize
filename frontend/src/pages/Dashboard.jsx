@@ -558,35 +558,33 @@ export default function Dashboard() {
           )}
 
           {/* Resultados */}
-          {Object.entries(groupedItems).map(([codigo, group]) => (
+          {Object.entries(groupedItems).map(([codigo, group]) => {
+            const headerSelectedCount = (selectedCards || []).filter((k) => k.startsWith(`${codigo}-`)).length;
+            return (
             <NcmGroup key={codigo}>
               <NcmHeader
                 pinned={pinnedCodes.includes(codigo)}
                 onClick={() => togglePin(codigo)}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedAllCodes.includes(codigo)}
-                    onChange={(e) => { e.stopPropagation(); toggleSelectAll(codigo); }}
-                    title={selectedAllCodes.includes(codigo) ? 'Desmarcar todos' : 'Marcar todos'}
-                  />
                   <strong>{codigo}</strong>{" "}
                   <span className="desc">{group[0].descricao}</span>
                 </div>
                 <span>
-                  {headerPinnedCodes.includes(codigo) || selectedAllCodes.includes(codigo) ? (
+                  {/* Show "Fixado: todos" only when header was pinned and there are no individual selections for it */}
+                  {((headerPinnedCodes.includes(codigo) && headerSelectedCount === 0 && !selectedAllCodes.includes(codigo)) || selectedAllCodes.includes(codigo)) ? (
                     <>
                       <Pin size={16} style={{ marginRight: 8 }} /> Fixado: todos
                     </>
-                  ) : (() => {
-                    const count = (selectedCards || []).filter(k => k.startsWith(`${codigo}-`)).length;
-                    if (count > 0) {
-                      return (<><Pin size={16} style={{ marginRight: 8 }} /> Fixado: {count}</>);
-                    }
-                    return (<><MapPin size={16} style={{ marginRight: 8 }} /> Clique para fixar</>);
-                  })()
-                  }
+                  ) : headerSelectedCount > 0 ? (
+                    <>
+                      <Pin size={16} style={{ marginRight: 8 }} /> Fixado: {headerSelectedCount}
+                    </>
+                  ) : (
+                    <>
+                      <MapPin size={16} style={{ marginRight: 8 }} /> Clique para fixar
+                    </>
+                  )}
                 </span>
               </NcmHeader>
 
@@ -607,14 +605,22 @@ export default function Dashboard() {
                   const aliquotaIBS = isIsento ? 0 : 0.1 * (1 - pRedIBS / 100);
                   const aliquotaCBS = isIsento ? 0 : 0.9 * (1 - pRedCBS / 100);
 
+                  // visual pinned logic for cards:
+                  const isIndividuallySelected = (selectedCards || []).includes(compositeKey);
+                  const isAllSelectedForCode = (selectedAllCodes || []).includes(item.codigo);
+                  const headerPinnedWithoutIndividual = pinnedCodes.includes(item.codigo) && headerSelectedCount === 0 && !isAllSelectedForCode;
+                  const isCardPinned = isIndividuallySelected || isAllSelectedForCode || headerPinnedWithoutIndividual;
+
                   return (
                     <Card key={compositeKey}>
-                      <div style={{ position: 'absolute', top: 10, right: 10 }}>
+                      <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {/* Pin marker moved to the right side next to the checkbox */}
+                        {isCardPinned && <Pin size={14} color="#a8892a" />}
                         <input
                           type="checkbox"
-                          checked={selectedAllCodes.includes(item.codigo) || selectedCards.includes(compositeKey)}
+                          checked={isAllSelectedForCode || isIndividuallySelected}
                           onChange={(e) => { e.stopPropagation(); toggleSelectCard(item.codigo, classKey); }}
-                          title={selectedAllCodes.includes(item.codigo) ? 'Todos selecionados' : (selectedCards.includes(compositeKey) ? 'Desmarcar' : 'Selecionar')}
+                          title={isAllSelectedForCode ? 'Todos selecionados' : (isIndividuallySelected ? 'Desmarcar' : 'Selecionar')}
                         />
                       </div>
                       <Section>
@@ -701,7 +707,7 @@ export default function Dashboard() {
                 })}
               </Grid>
             </NcmGroup>
-          ))}
+          )})}
         </Content>
       </Layout>
     </>
