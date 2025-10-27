@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
 import { Home, Upload, Search, HelpCircle, Settings, LogOut, ChevronDown, ChevronRight, FileText } from "lucide-react";
+import HelpModal from './HelpModal';
 import Logo from './Logo'
 
 const SidebarContainer = styled.div`
@@ -172,6 +173,7 @@ export default function Sidebar() {
   const [toolsOpen, setToolsOpen] = useState(true);
   const [consultasOpen, setConsultasOpen] = useState(true);
   const [importacoesOpen, setImportacoesOpen] = useState(true);
+  const [helpOpen, setHelpOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   // read user from localStorage to determine admin visibility
@@ -257,9 +259,10 @@ export default function Sidebar() {
           <LogoutButton onClick={handleLogout}>
             <LogOut /> Sair
           </LogoutButton>
-          <HelpButton onClick={() => alert("Ajuda: suporte@parametrizze.com")}>
+          <HelpButton onClick={() => setHelpOpen(true)}>
             <HelpCircle /> Ajuda
           </HelpButton>
+          {helpOpen && <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />}
         </div>
       </Footer>
     </SidebarContainer>

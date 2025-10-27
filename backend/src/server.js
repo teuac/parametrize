@@ -7,6 +7,7 @@ import { ncmRouter } from './routes/ncm.js';
 import { classTribRouter } from './routes/classTrib.js';
 import { utilRouter } from './routes/util.js';
 import relatorioRouter from "./routes/relatorio.js";
+import supportRouter from './routes/support.js';
 
 
 //import { importRouter } from './routes/importar.js';
@@ -22,6 +23,7 @@ app.use('/ncm', ncmRouter);
 app.use('/class-trib', classTribRouter);
 app.use('/util', utilRouter);
 app.use("/relatorio", relatorioRouter);
+app.use('/support', supportRouter);
 //app.use('/importar-planilha', importRouter);
 
 // fallback
