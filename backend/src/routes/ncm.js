@@ -13,6 +13,24 @@ ncmRouter.use(ensureAuth);
 ncmRouter.get("/", async (req, res) => {
   try {
     const { q } = req.query;
+    const userId = req.user?.id;
+
+    // If this is a search (q provided) and the user is not admin, enforce daily quota
+    if (q && req.user?.role !== 'admin') {
+      try {
+        const userRecord = await prisma.user.findUnique({ where: { id: userId }, select: { dailySearchLimit: true } });
+        const limit = userRecord?.dailySearchLimit ?? 100;
+        const startOfDay = new Date();
+        startOfDay.setHours(0,0,0,0);
+        const used = await prisma.searchLog.count({ where: { userId, createdAt: { gte: startOfDay } } });
+        if (used >= limit) {
+          return res.status(429).json({ error: 'Limite diário de buscas atingido', limit, used });
+        }
+      } catch (err) {
+        console.error('Erro ao verificar cota de buscas', err);
+        // don't block search on quota check failure — allow it
+      }
+    }
 
     // Se não houver termo de busca, traz os primeiros 50
     if (!q) {
@@ -56,6 +74,17 @@ ncmRouter.get("/", async (req, res) => {
     `;
 
     res.json(items);
+
+    // Log the search (do not block response if logging fails)
+    if (q && req.user?.role !== 'admin') {
+      (async () => {
+        try {
+          await prisma.searchLog.create({ data: { userId, query: String(q) } });
+        } catch (err) {
+          console.error('Erro ao gravar SearchLog', err);
+        }
+      })();
+    }
   } catch (err) {
     console.error("❌ Erro ao buscar NCM:", err);
     res.status(500).json({ error: "Erro ao buscar NCMs" });

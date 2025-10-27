@@ -10,16 +10,16 @@ export const usersRouter = Router();
 usersRouter.use(ensureAuth, ensureAdmin);
 
 usersRouter.get('/', async (_, res) => {
-  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, active: true, createdAt: true, cpfCnpj: true, adesao: true, telefone: true, activeUpdatedAt: true } });
+  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, active: true, createdAt: true, cpfCnpj: true, adesao: true, telefone: true, activeUpdatedAt: true, dailySearchLimit: true } });
   res.json(users);
 });
 
 usersRouter.post('/', async (req, res) => {
-  const { name, email, password, role = Role.user, active = true, cpfCnpj, telefone } = req.body;
+  const { name, email, password, role = Role.user, active = true, cpfCnpj, telefone, dailySearchLimit = 100 } = req.body;
   const plainPassword = password; // keep plain password to include in email
   const hash = await bcrypt.hash(password, 10);
   // adesao will be set by Prisma default(now())
-  const user = await prisma.user.create({ data: { name, email, password: hash, role, active, cpfCnpj, telefone, activeUpdatedAt: active ? new Date() : null } });
+  const user = await prisma.user.create({ data: { name, email, password: hash, role, active, cpfCnpj, telefone, activeUpdatedAt: active ? new Date() : null, dailySearchLimit } });
 
   // Try to send welcome email with access data. Do not block user creation on email failure.
   (async () => {

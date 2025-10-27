@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
-import { Home, Upload, Search, HelpCircle, Settings, LogOut, ChevronDown, ChevronRight, FileText } from "lucide-react";
+import { HelpCircle, Settings, LogOut, ChevronDown, ChevronRight, FileText } from "lucide-react";
 import HelpModal from './HelpModal';
 import Logo from './Logo'
 
@@ -36,9 +36,9 @@ const SidebarContainer = styled.div`
 const Title = styled.h1`
   font-size: 1.5rem;
   color: #a8892a;
-  text-align: center;
-  margin-top: -30px;
-  margin-bottom: -12px;
+  text-align: left;
+  margin-top: 0;
+  margin-bottom: 12px;
 
   @media (max-width: 768px) {
     margin-bottom: 0;
@@ -49,6 +49,7 @@ const Nav = styled.nav`
   display: flex;
   flex-direction: column;
   gap: 20px;
+  margin-top: 24px;
 
   @media (max-width: 768px) {
     flex-direction: row;
@@ -72,6 +73,8 @@ const GroupTitle = styled.button`
   border: none;
   border-radius: 8px;
   padding: 10px 14px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
   cursor: pointer;
   transition: 0.2s;
 
@@ -81,10 +84,18 @@ const GroupTitle = styled.button`
   }
 
   svg {
-    height: 16px;
-    width: 16px;
-    flex: 0 0 16px;
+    height: 18px;
+    width: 18px;
+    flex: 0 0 18px;
     color: inherit;
+  }
+  /* prevent wrapping for section titles */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* ensure consistent spacing between group titles so they align */
+  &:not(:first-child) {
+    margin-top: 8px;
   }
 `;
 
@@ -92,18 +103,22 @@ const SubNav = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-left: 18px;
+  margin-left: 0;
 `;
 // Move NavButton before SubButton because SubButton extends NavButton
 const NavButton = styled.button`
   display: flex;
   align-items: center;
   gap: 10px;
+  justify-content: flex-start;
+  width: 100%;
   background: ${({ active }) => (active ? "#1a1a1a" : "transparent")};
   color: ${({ active }) => (active ? "#a8892a" : "#f5f5f5")};
   border: none;
   border-radius: 8px;
   padding: 10px 14px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: 0.3s;
 
@@ -119,22 +134,29 @@ const NavButton = styled.button`
 `;
 
 const SubButton = styled(NavButton)`
-  padding: 8px 14px;
+  padding: 8px 12px;
   background: transparent;
   color: #ddd;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   border-radius: 6px;
   margin-left: 0;
+  justify-content: flex-start;
+  width: 100%;
 
   svg {
-    height: 14px;
-    width: 14px;
+    height: 18px;
+    width: 18px;
   }
 
   &:hover {
     color: #a8892a;
     background: #111;
   }
+
+  /* prevent wrapping so labels stay in one line; use ellipsis if too long */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const LogoutButton = styled(NavButton)`
@@ -161,6 +183,7 @@ const HelpButton = styled.button`
   color: #888;
   border: none;
   padding: 10px 0;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: 0.3s;
 
@@ -171,8 +194,7 @@ const HelpButton = styled.button`
 
 export default function Sidebar() {
   const [toolsOpen, setToolsOpen] = useState(true);
-  const [consultasOpen, setConsultasOpen] = useState(true);
-  const [importacoesOpen, setImportacoesOpen] = useState(true);
+  const [reformaOpen, setReformaOpen] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -200,6 +222,32 @@ export default function Sidebar() {
         <Title><Logo size="180px" /></Title>
         <Nav>
           <Group>
+            <GroupTitle onClick={() => setReformaOpen(v => !v)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <FileText /> Reforma Tributária
+              </div>
+              <div>{reformaOpen ? <ChevronDown /> : <ChevronRight />}</div>
+            </GroupTitle>
+
+            {reformaOpen && (
+              <>
+                <SubNav>
+                  <SubButton onClick={() => navigate('/classificacao-tributaria')} active={location.pathname === '/classificacao-tributaria'}>
+                    Classificação Tributária
+                  </SubButton>
+                  <SubButton onClick={() => navigate('/consulta-lote')} active={location.pathname === '/consulta-lote'}>
+                    Consulta em Lote
+                  </SubButton>
+                  <SubButton onClick={() => navigate('/import')} active={location.pathname === '/import'}>
+                    Importar Planilha
+                  </SubButton>
+                  <SubButton onClick={() => navigate('/download-modelo')} active={location.pathname === '/download-modelo'}>
+                    Download de Modelo
+                  </SubButton>
+                </SubNav>
+              </>
+            )}
+
             <GroupTitle onClick={() => setToolsOpen(v => !v)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <FileText /> Ferramentas
@@ -209,36 +257,17 @@ export default function Sidebar() {
 
             {toolsOpen && (
               <>
-                <div>
-                  <GroupTitle onClick={() => setConsultasOpen(v => !v)} style={{ padding: 8, paddingLeft: 18 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Search /> Consultas</div>
-                    <div>{consultasOpen ? <ChevronDown /> : <ChevronRight />}</div>
-                  </GroupTitle>
-                  {consultasOpen && (
-                    <SubNav>
-                      <SubButton onClick={() => navigate('/dashboard')} active={location.pathname === '/dashboard'}>
-                        Classe tributária
-                      </SubButton>
-                      <SubButton onClick={() => navigate('/ncm')} active={location.pathname === '/ncm'}>
-                        NCM
-                      </SubButton>
-                    </SubNav>
-                  )}
-                </div>
-
-                <div>
-                  <GroupTitle onClick={() => setImportacoesOpen(v => !v)} style={{ padding: 8, paddingLeft: 18 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Upload /> Importações</div>
-                    <div>{importacoesOpen ? <ChevronDown /> : <ChevronRight />}</div>
-                  </GroupTitle>
-                  {importacoesOpen && (
-                    <SubNav>
-                      <SubButton onClick={() => navigate('/import')} active={location.pathname === '/import'}>
-                        Planilha
-                      </SubButton>
-                    </SubNav>
-                  )}
-                </div>
+                <SubNav>
+                  <SubButton onClick={() => navigate('/tabela-ncm')} active={location.pathname === '/tabela-ncm'}>
+                    Tabela NCM
+                  </SubButton>
+                  <SubButton onClick={() => navigate('/tabela-nbs')} active={location.pathname === '/tabela-nbs'}>
+                    Tabela NBS
+                  </SubButton>
+                  <SubButton onClick={() => navigate('/tabela-cfops')} active={location.pathname === '/tabela-cfops'}>
+                    Tabela CFOPS
+                  </SubButton>
+                </SubNav>
               </>
             )}
           </Group>

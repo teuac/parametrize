@@ -34,6 +34,35 @@ const Content = styled.div`
   }
 `;
 
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+`;
+
+const ModalBox = styled.div`
+  background: #0b0b0b;
+  padding: 20px;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 520px;
+  border: 1px solid #222;
+`;
+
+const ModalTitle = styled.h3`
+  background: #a8892a; /* system yellow */
+  color: #0b0b0b;
+  margin: -20px -20px 12px -20px; /* extend title background to modal edges */
+  padding: 12px 16px;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  text-align: center;
+`;
+
 /* 🔹 NOVOS ESTILOS DO TOPO 🔹 */
 const SearchWrapper = styled.div`
   display: flex;
@@ -323,6 +352,8 @@ export default function Dashboard() {
   const [suggestions, setSuggestions] = useState([]);
   const [noResults, setNoResults] = useState(false);
   const [items, setItems] = useState([]);
+  const [quotaMessage, setQuotaMessage] = useState('');
+  const [quotaModalOpen, setQuotaModalOpen] = useState(false);
   const [pinnedCodes, setPinnedCodes] = useState([]);
   const [headerPinnedCodes, setHeaderPinnedCodes] = useState([]); // codes pinned via header click
   const [selectedCards, setSelectedCards] = useState([]); // array of `${codigo}-${cClas}`
@@ -350,6 +381,8 @@ export default function Dashboard() {
     setNoResults(false);
     try {
       const { data } = await api.get("/ncm", { params: { q: code } });
+  setQuotaMessage('');
+  setQuotaModalOpen(false);
       const pinnedItems = items.filter((i) => pinnedCodes.includes(i.codigo));
       // Show newly searched items first, then keep pinned items afterwards
       const combined = [...data, ...pinnedItems];
@@ -358,6 +391,14 @@ export default function Dashboard() {
       );
       setItems(unique);
     } catch (err) {
+      // Handle quota exceeded
+      if (err?.response?.status === 429) {
+        const { used, limit, error } = err.response.data || {};
+        const msg = error || `Limite diário de buscas atingido (${used || 0}/${limit || '—'})`;
+        setQuotaMessage(msg);
+        setQuotaModalOpen(true);
+        return;
+      }
       console.error("Erro ao buscar NCM:", err);
     }
   }
@@ -499,6 +540,7 @@ export default function Dashboard() {
             </InfoMessage>
 
             <SearchContainer>
+                {/* quotaMessage is now shown in a modal when needed */}
               <SearchBar>
                 <input
                   placeholder="Buscar por código ou descrição..."
@@ -715,6 +757,17 @@ export default function Dashboard() {
             </NcmGroup>
           )})}
         </Content>
+        {quotaModalOpen && (
+          <ModalOverlay>
+            <ModalBox>
+              <ModalTitle>Limite de buscas atingido</ModalTitle>
+              <p>{quotaMessage}</p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                <button onClick={() => setQuotaModalOpen(false)} style={{ background: '#a8892a', color: '#0b0b0b', border: 'none', padding: '8px 12px', borderRadius: 8, cursor: 'pointer' }}>Fechar</button>
+              </div>
+            </ModalBox>
+          </ModalOverlay>
+        )}
       </Layout>
     </>
   );

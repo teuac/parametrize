@@ -158,7 +158,7 @@ export default function UsersCrud(){
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true, cpfCnpj: '', telefone: '', adesao: null, activeUpdatedAt: null });
+  const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true, cpfCnpj: '', telefone: '', adesao: null, activeUpdatedAt: null, dailySearchLimit: 100 });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
@@ -173,15 +173,15 @@ export default function UsersCrud(){
 
   useEffect(()=>{ fetchUsers() }, []);
 
-  const openNew = () => { setEditing(null); setForm({ name:'', email:'', password:'', role:'user', active: true }); setModalOpen(true) };
-  const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role, active: u.active ?? true, cpfCnpj: u.cpfCnpj ?? '', telefone: u.telefone ?? '', adesao: u.adesao, activeUpdatedAt: u.activeUpdatedAt }); setModalOpen(true) };
+  const openNew = () => { setEditing(null); setForm({ name:'', email:'', password:'', role:'user', active: true, cpfCnpj: '', telefone: '', dailySearchLimit: 100 }); setModalOpen(true) };
+  const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role, active: u.active ?? true, cpfCnpj: u.cpfCnpj ?? '', telefone: u.telefone ?? '', adesao: u.adesao, activeUpdatedAt: u.activeUpdatedAt, dailySearchLimit: u.dailySearchLimit ?? 100 }); setModalOpen(true) };
 
   const save = async () => {
     try{
       if(editing){
-        await api.put(`/users/${editing.id}`, { name: form.name, email: form.email, ...(form.password?{password:form.password}:{}), role: form.role, active: form.active, cpfCnpj: form.cpfCnpj, telefone: form.telefone });
+        await api.put(`/users/${editing.id}`, { name: form.name, email: form.email, ...(form.password?{password:form.password}:{}), role: form.role, active: form.active, cpfCnpj: form.cpfCnpj, telefone: form.telefone, dailySearchLimit: Number(form.dailySearchLimit || 0) });
       }else{
-        await api.post('/users', form);
+        await api.post('/users', { ...form, dailySearchLimit: Number(form.dailySearchLimit || 0) });
       }
       setModalOpen(false);
       fetchUsers();
@@ -221,6 +221,7 @@ export default function UsersCrud(){
                 <Th>E-mail</Th>
                 <Th>CPF/CNPJ</Th>
                 <Th>Telefone</Th>
+                  <Th>Limite buscas/dia</Th>
                   <Th>Role</Th>
                   <Th>Status</Th>
                 <Th>Adesão</Th>
@@ -237,6 +238,7 @@ export default function UsersCrud(){
                   <Td>{u.email}</Td>
                   <Td>{u.cpfCnpj || '-'}</Td>
                   <Td>{u.telefone || '-'}</Td>
+                  <Td>{typeof u.dailySearchLimit !== 'undefined' ? u.dailySearchLimit : '-'}</Td>
                   <Td>{u.role}</Td>
                   <Td>{u.active ? 'Ativo' : 'Inativo'}</Td>
                   <Td>{u.adesao ? new Date(u.adesao).toLocaleString() : new Date(u.createdAt).toLocaleString()}</Td>
@@ -289,6 +291,10 @@ export default function UsersCrud(){
             <Field>
               <label>Telefone</label>
               <Input value={form.telefone || ''} onChange={e=>setForm({...form, telefone: e.target.value})} />
+            </Field>
+            <Field>
+              <label>Limite de buscas diárias</label>
+              <Input type="number" min={0} value={form.dailySearchLimit ?? 0} onChange={e=>setForm({...form, dailySearchLimit: e.target.value})} />
             </Field>
             <Field>
               <label>Status</label>

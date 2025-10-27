@@ -23,7 +23,17 @@ model User {
   adesao     DateTime @default(now())
   telefone   String?
   activeUpdatedAt DateTime?
+  dailySearchLimit Int    @default(100)
+  searches   SearchLog[]
   createdAt  DateTime @default(now())
+}
+
+model SearchLog {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  query     String?
+  createdAt DateTime @default(now())
 }
 
 model Ncm {
