@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "activeUpdatedAt" TIMESTAMP(3),
+ADD COLUMN     "adesao" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "cpfCnpj" TEXT,
+ADD COLUMN     "telefone" TEXT;

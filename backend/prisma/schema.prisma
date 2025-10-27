@@ -19,6 +19,10 @@ model User {
   password   String
   role       Role     @default(user)
   active     Boolean  @default(true)
+  cpfCnpj    String? 
+  adesao     DateTime @default(now())
+  telefone   String?
+  activeUpdatedAt DateTime?
   createdAt  DateTime @default(now())
 }
 

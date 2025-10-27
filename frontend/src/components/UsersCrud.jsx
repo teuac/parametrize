@@ -158,7 +158,7 @@ export default function UsersCrud(){
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true });
+  const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true, cpfCnpj: '', telefone: '', adesao: null, activeUpdatedAt: null });
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -172,12 +172,12 @@ export default function UsersCrud(){
   useEffect(()=>{ fetchUsers() }, []);
 
   const openNew = () => { setEditing(null); setForm({ name:'', email:'', password:'', role:'user', active: true }); setModalOpen(true) };
-  const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role, active: u.active ?? true }); setModalOpen(true) };
+  const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role, active: u.active ?? true, cpfCnpj: u.cpfCnpj ?? '', telefone: u.telefone ?? '', adesao: u.adesao, activeUpdatedAt: u.activeUpdatedAt }); setModalOpen(true) };
 
   const save = async () => {
     try{
       if(editing){
-        await api.put(`/users/${editing.id}`, { name: form.name, email: form.email, ...(form.password?{password:form.password}:{}), role: form.role, active: form.active });
+        await api.put(`/users/${editing.id}`, { name: form.name, email: form.email, ...(form.password?{password:form.password}:{}), role: form.role, active: form.active, cpfCnpj: form.cpfCnpj, telefone: form.telefone });
       }else{
         await api.post('/users', form);
       }
@@ -210,9 +210,12 @@ export default function UsersCrud(){
               <tr>
                 <Th>Nome</Th>
                 <Th>E-mail</Th>
+                <Th>CPF/CNPJ</Th>
+                <Th>Telefone</Th>
                   <Th>Role</Th>
                   <Th>Status</Th>
-                <Th>Criado em</Th>
+                <Th>Adesão</Th>
+                <Th>Últ. alteração status</Th>
                 <Th></Th>
               </tr>
             </thead>
@@ -223,9 +226,12 @@ export default function UsersCrud(){
                 <tr key={u.id}>
                   <Td>{u.name}</Td>
                   <Td>{u.email}</Td>
+                  <Td>{u.cpfCnpj || '-'}</Td>
+                  <Td>{u.telefone || '-'}</Td>
                   <Td>{u.role}</Td>
                   <Td>{u.active ? 'Ativo' : 'Inativo'}</Td>
-                  <Td>{new Date(u.createdAt).toLocaleString()}</Td>
+                  <Td>{u.adesao ? new Date(u.adesao).toLocaleString() : new Date(u.createdAt).toLocaleString()}</Td>
+                  <Td>{u.activeUpdatedAt ? new Date(u.activeUpdatedAt).toLocaleString() : '-'}</Td>
                   <Td>
                     <Actions>
                       <IconBtn title="Editar" onClick={()=>openEdit(u)}><Edit2 size={16} /></IconBtn>
@@ -236,7 +242,7 @@ export default function UsersCrud(){
               ))}
               {users.filter(u => !search || (u.email || '').toLowerCase().includes(search.toLowerCase())).length === 0 && (
                 <tr>
-                  <Td colSpan={5} style={{ padding: 18, textAlign: 'center', color: '#888' }}>Nenhum usuário encontrado</Td>
+                  <Td colSpan={9} style={{ padding: 18, textAlign: 'center', color: '#888' }}>Nenhum usuário encontrado</Td>
                 </tr>
               )}
             </tbody>
@@ -268,12 +274,32 @@ export default function UsersCrud(){
               </Select>
             </Field>
             <Field>
+              <label>CPF/CNPJ</label>
+              <Input value={form.cpfCnpj || ''} onChange={e=>setForm({...form, cpfCnpj: e.target.value})} />
+            </Field>
+            <Field>
+              <label>Telefone</label>
+              <Input value={form.telefone || ''} onChange={e=>setForm({...form, telefone: e.target.value})} />
+            </Field>
+            <Field>
               <label>Status</label>
               <Select value={form.active ? 'active' : 'inactive'} onChange={e=>setForm({...form, active: e.target.value === 'active'})}>
                 <option value="active">Ativo</option>
                 <option value="inactive">Inativo</option>
               </Select>
             </Field>
+            {editing && (
+              <>
+                <Field>
+                  <label>Adesão</label>
+                  <Input value={form.adesao ? new Date(form.adesao).toLocaleString() : ''} readOnly />
+                </Field>
+                <Field>
+                  <label>Última alteração status</label>
+                  <Input value={form.activeUpdatedAt ? new Date(form.activeUpdatedAt).toLocaleString() : ''} readOnly />
+                </Field>
+              </>
+            )}
 
             <ModalActions>
               <CancelBtn onClick={()=>setModalOpen(false)}>Cancelar</CancelBtn>
