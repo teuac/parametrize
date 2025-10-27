@@ -1,6 +1,7 @@
+import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
-import { Home, Upload, HelpCircle, Settings, LogOut } from "lucide-react";
+import { Home, Upload, Search, HelpCircle, Settings, LogOut, ChevronDown, ChevronRight, FileText } from "lucide-react";
 import Logo from './Logo'
 
 const SidebarContainer = styled.div`
@@ -54,6 +55,45 @@ const Nav = styled.nav`
   }
 `;
 
+const Group = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const GroupTitle = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: transparent;
+  color: #f5f5f5;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: 0.2s;
+
+  &:hover {
+    background: #1a1a1a;
+    color: #a8892a;
+  }
+
+  svg {
+    height: 16px;
+    width: 16px;
+    flex: 0 0 16px;
+    color: inherit;
+  }
+`;
+
+const SubNav = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: 18px;
+`;
+// Move NavButton before SubButton because SubButton extends NavButton
 const NavButton = styled.button`
   display: flex;
   align-items: center;
@@ -74,6 +114,25 @@ const NavButton = styled.button`
   svg {
     height: 18px;
     width: 18px;
+  }
+`;
+
+const SubButton = styled(NavButton)`
+  padding: 8px 14px;
+  background: transparent;
+  color: #ddd;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  margin-left: 0;
+
+  svg {
+    height: 14px;
+    width: 14px;
+  }
+
+  &:hover {
+    color: #a8892a;
+    background: #111;
   }
 `;
 
@@ -110,6 +169,9 @@ const HelpButton = styled.button`
 `;
 
 export default function Sidebar() {
+  const [toolsOpen, setToolsOpen] = useState(true);
+  const [consultasOpen, setConsultasOpen] = useState(true);
+  const [importacoesOpen, setImportacoesOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   // read user from localStorage to determine admin visibility
@@ -135,18 +197,49 @@ export default function Sidebar() {
       <div>
         <Title><Logo size="180px" /></Title>
         <Nav>
-          <NavButton
-            active={location.pathname === "/dashboard"}
-            onClick={() => navigate("/dashboard")}
-          >
-            <Home /> Consulta
-          </NavButton>
-          <NavButton
-            active={location.pathname === "/import"}
-            onClick={() => navigate("/import")}
-          >
-            <Upload /> Importar
-          </NavButton>
+          <Group>
+            <GroupTitle onClick={() => setToolsOpen(v => !v)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <FileText /> Ferramentas
+              </div>
+              <div>{toolsOpen ? <ChevronDown /> : <ChevronRight />}</div>
+            </GroupTitle>
+
+            {toolsOpen && (
+              <>
+                <div>
+                  <GroupTitle onClick={() => setConsultasOpen(v => !v)} style={{ padding: 8, paddingLeft: 18 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Search /> Consultas</div>
+                    <div>{consultasOpen ? <ChevronDown /> : <ChevronRight />}</div>
+                  </GroupTitle>
+                  {consultasOpen && (
+                    <SubNav>
+                      <SubButton onClick={() => navigate('/dashboard')} active={location.pathname === '/dashboard'}>
+                        Classe tributária
+                      </SubButton>
+                      <SubButton onClick={() => navigate('/ncm')} active={location.pathname === '/ncm'}>
+                        NCM
+                      </SubButton>
+                    </SubNav>
+                  )}
+                </div>
+
+                <div>
+                  <GroupTitle onClick={() => setImportacoesOpen(v => !v)} style={{ padding: 8, paddingLeft: 18 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Upload /> Importações</div>
+                    <div>{importacoesOpen ? <ChevronDown /> : <ChevronRight />}</div>
+                  </GroupTitle>
+                  {importacoesOpen && (
+                    <SubNav>
+                      <SubButton onClick={() => navigate('/import')} active={location.pathname === '/import'}>
+                        Planilha
+                      </SubButton>
+                    </SubNav>
+                  )}
+                </div>
+              </>
+            )}
+          </Group>
           {/* logout button removed from main nav and placed in footer */}
           {user?.role === 'admin' && (
             <NavButton
