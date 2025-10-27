@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import Admin from './pages/Admin.jsx'
 import Import from './pages/Import.jsx'
 import TabelaNcm from './pages/TabelaNcm.jsx'
+import TabelaCfops from './pages/TabelaCfops.jsx'
 import RecoverRequest from './pages/RecoverRequest.jsx'
 import RecoverReset from './pages/RecoverReset.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
@@ -26,6 +27,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
         <Route path="/import" element={<ProtectedRoute><Import /></ProtectedRoute>} />
         <Route path="/tabela-ncm" element={<ProtectedRoute><TabelaNcm /></ProtectedRoute>} />
+        <Route path="/tabela-cfops" element={<ProtectedRoute><TabelaCfops /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,

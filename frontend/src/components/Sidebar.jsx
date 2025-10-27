@@ -232,7 +232,7 @@ export default function Sidebar() {
             {reformaOpen && (
               <>
                 <SubNav>
-                  <SubButton onClick={() => navigate('/classificacao-tributaria')} active={location.pathname === '/classificacao-tributaria'}>
+                  <SubButton onClick={() => navigate('/')} active={location.pathname === '/'}>
                     Classificação Tributária
                   </SubButton>
                   <SubButton onClick={() => navigate('/consulta-lote')} active={location.pathname === '/consulta-lote'}>
