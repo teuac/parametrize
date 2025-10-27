@@ -159,6 +159,8 @@ export default function UsersCrud(){
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true, cpfCnpj: '', telefone: '', adesao: null, activeUpdatedAt: null });
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -186,9 +188,16 @@ export default function UsersCrud(){
     }catch(e){ console.error(e); alert('Erro ao salvar usuário'); }
   };
 
-  const remove = async (u)=>{
-    if(!confirm(`Apagar usuário ${u.email}?`)) return;
-    try{ await api.delete(`/users/${u.id}`); fetchUsers(); }catch(e){ console.error(e); alert('Erro ao apagar') }
+  const openDelete = (u) => { setDeleteTarget(u); setDeleteModalOpen(true); };
+
+  const confirmDelete = async () => {
+    if(!deleteTarget) return;
+    try{
+      await api.delete(`/users/${deleteTarget.id}`);
+      setDeleteModalOpen(false);
+      setDeleteTarget(null);
+      fetchUsers();
+    }catch(e){ console.error(e); alert('Erro ao apagar'); }
   };
 
   return (
@@ -234,8 +243,8 @@ export default function UsersCrud(){
                   <Td>{u.activeUpdatedAt ? new Date(u.activeUpdatedAt).toLocaleString() : '-'}</Td>
                   <Td>
                     <Actions>
-                      <IconBtn title="Editar" onClick={()=>openEdit(u)}><Edit2 size={16} /></IconBtn>
-                      <IconBtn title="Apagar" onClick={()=>remove(u)}><Trash2 size={16} /></IconBtn>
+                        <IconBtn title="Editar" onClick={()=>openEdit(u)}><Edit2 size={16} /></IconBtn>
+                        <IconBtn title="Apagar" onClick={()=>openDelete(u)}><Trash2 size={16} /></IconBtn>
                     </Actions>
                   </Td>
                 </tr>
@@ -304,6 +313,19 @@ export default function UsersCrud(){
             <ModalActions>
               <CancelBtn onClick={()=>setModalOpen(false)}>Cancelar</CancelBtn>
               <SaveBtn onClick={save}>{editing? 'Salvar':'Criar'}</SaveBtn>
+            </ModalActions>
+          </ModalBox>
+        </ModalOverlay>
+      )}
+
+      {deleteModalOpen && (
+        <ModalOverlay style={{ zIndex: 10000 }}>
+          <ModalBox>
+            <h3>Confirmar exclusão</h3>
+            <p>Tem certeza que deseja apagar o usuário <strong>{deleteTarget?.email}</strong>? Esta ação não pode ser desfeita.</p>
+            <ModalActions>
+              <CancelBtn onClick={() => { setDeleteModalOpen(false); setDeleteTarget(null); }}>Cancelar</CancelBtn>
+              <SaveBtn onClick={confirmDelete} style={{ background: '#c0392b' }}>Apagar</SaveBtn>
             </ModalActions>
           </ModalBox>
         </ModalOverlay>

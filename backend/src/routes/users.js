@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import nodemailer from 'nodemailer';
 import { ensureAuth, ensureAdmin } from '../middlewares/auth.js';
 
 const prisma = new PrismaClient();
@@ -15,9 +16,41 @@ usersRouter.get('/', async (_, res) => {
 
 usersRouter.post('/', async (req, res) => {
   const { name, email, password, role = Role.user, active = true, cpfCnpj, telefone } = req.body;
+  const plainPassword = password; // keep plain password to include in email
   const hash = await bcrypt.hash(password, 10);
   // adesao will be set by Prisma default(now())
   const user = await prisma.user.create({ data: { name, email, password: hash, role, active, cpfCnpj, telefone, activeUpdatedAt: active ? new Date() : null } });
+
+  // Try to send welcome email with access data. Do not block user creation on email failure.
+  (async () => {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+      });
+
+      const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@parametrizze.com';
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+      const html = `
+        <p>Olá ${user.name || ''},</p>
+        <p>Bem-vindo(a) ao sistema. Seus dados de acesso são:</p>
+        <ul>
+          <li><strong>E-mail:</strong> ${user.email}</li>
+          <li><strong>Senha:</strong> ${plainPassword || '(definida)'}</li>
+        </ul>
+        <p>Você pode acessar a plataforma em <a href="${frontendUrl}">${frontendUrl}</a></p>
+        <p>Se você não esperava este e-mail, ignore-o.</p>
+      `;
+
+      await transporter.sendMail({ from, to: user.email, subject: 'Bem-vindo(a) - Acesso à plataforma', html });
+    } catch (err) {
+      console.error('Error sending welcome email', err);
+    }
+  })();
+
   res.status(201).json({ id: user.id });
 });
 
