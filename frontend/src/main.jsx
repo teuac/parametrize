@@ -5,6 +5,7 @@ import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Admin from './pages/Admin.jsx'
 import Import from './pages/Import.jsx'
+import DownloadModelo from './pages/DownloadModelo.jsx'
 import TabelaNcm from './pages/TabelaNcm.jsx'
 import TabelaCfops from './pages/TabelaCfops.jsx'
 import TabelaNbs from './pages/TabelaNbs.jsx'
@@ -27,6 +28,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
         <Route path="/import" element={<ProtectedRoute><Import /></ProtectedRoute>} />
+  <Route path="/download-modelo" element={<ProtectedRoute><DownloadModelo /></ProtectedRoute>} />
         <Route path="/tabela-ncm" element={<ProtectedRoute><TabelaNcm /></ProtectedRoute>} />
         <Route path="/tabela-cfops" element={<ProtectedRoute><TabelaCfops /></ProtectedRoute>} />
   <Route path="/tabela-nbs" element={<ProtectedRoute><TabelaNbs /></ProtectedRoute>} />

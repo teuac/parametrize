@@ -14,7 +14,9 @@ import supportRouter from './routes/support.js';
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+// allow larger JSON payloads (we accept base64-encoded XLSX via JSON for now)
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // rotas
 app.use('/auth', authRouter);
