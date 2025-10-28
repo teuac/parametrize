@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
 import { prisma } from "../prismaClient.js";
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
@@ -37,6 +38,24 @@ if (!ncmList.length) {
     if (!ncmList.length) {
       return res.status(404).json({ error: "Nenhum NCM encontrado." });
     }
+
+    // try to resolve the requesting user from JWT (optional)
+    const getRequestUser = async (req) => {
+      try {
+        const auth = req.headers.authorization;
+        if (!auth) return null;
+        const [, token] = auth.split(' ');
+        if (!token) return null;
+        const payload = jwt.verify(token, process.env.JWT_SECRET);
+        if (!payload?.id) return null;
+        const user = await prisma.user.findUnique({ where: { id: payload.id } });
+        return user;
+      } catch (err) {
+        return null;
+      }
+    };
+
+    const requestUser = await getRequestUser(req);
 
     // helper: format aliquotas (trim trailing zeros and append %)
     const formatAliq = (val, decimals = 4) => {
@@ -120,12 +139,32 @@ if (!ncmList.length) {
   doc.text(titleText, titleX, 50);
   doc.restore();
 
-  // Reduce gap between title and table: smaller moveDown and smaller extra Y offset
-  doc.moveDown(0.6);
+  // include requesting user name and cpf/cnpj in header if available
+  try {
+    const nameLine = requestUser && requestUser.name ? String(requestUser.name).trim() : '';
+    const cpfLine = requestUser && requestUser.cpfCnpj ? String(requestUser.cpfCnpj).trim() : '';
+    if (nameLine || cpfLine) {
+      doc.font('Helvetica').fontSize(10).fillColor('#000');
+      const line1 = `${nameLine}`.trim();
+      const line2 = cpfLine ? `CPF/CNPJ: ${cpfLine}` : '';
+      // place the block in the top-right corner
+      const textBlockWidth = 200; // fixed width for the corner block
+      const textBlockX = Math.max(40, doc.page.width - 40 - textBlockWidth); // start X so the block sits near right margin
+      const startY = 20; // top area
+      // right-align the lines inside the block so they sit flush to the right corner
+      doc.text(line1, textBlockX, startY, { width: textBlockWidth, align: 'right' });
+      if (line2) doc.text(line2, textBlockX, startY + 12, { width: textBlockWidth, align: 'right' });
+    }
+  } catch (e) {}
+
+  // Increase gap between header and table so the table appears lower on the page
+  // small additional push to move table a tiny bit further down
+  doc.moveDown(1.9);
 
   // === Tabela ===
   const startX = 40;
-  let y = doc.y + 4;
+  // add a slightly larger vertical offset so the table starts a bit lower
+  let y = doc.y + 36;
   // compute available width between left startX and right margin (40)
   const availableWidth = doc.page.width - startX - 40; // page width minus left and right margins
   // keep some sensible minimums for small pages
@@ -299,6 +338,38 @@ if (!ncmList.length) {
       }
       if (!headerRowIndex) headerRowIndex = 6; // final fallback
 
+      // insert generated-by row(s) above header if we have requestUser info
+      try {
+        const nameLine = requestUser && requestUser.name ? String(requestUser.name).trim() : '';
+        const cpfLine = requestUser && requestUser.cpfCnpj ? String(requestUser.cpfCnpj).trim() : '';
+        if (nameLine || cpfLine) {
+          const firstRow = `Relatorio gerado por: ${nameLine}`.trim();
+          // insert name line and place it on the right by merging across the sheet and aligning right
+          const insertAt1 = headerRowIndex;
+          sheet.spliceRows(insertAt1, 0, [firstRow]);
+          // merge across all columns so the text can sit at the far right
+          try {
+            sheet.mergeCells(insertAt1, 1, insertAt1, sheet.columnCount);
+          } catch (e) {}
+          const cell1 = sheet.getRow(insertAt1).getCell(1);
+          cell1.value = firstRow;
+          cell1.alignment = { horizontal: 'right' };
+          headerRowIndex += 1; // shift header down
+          // insert cpf/cnpj on the next line if present and align right across the sheet
+          if (cpfLine) {
+            const insertAt2 = headerRowIndex;
+            sheet.spliceRows(insertAt2, 0, [`CPF/CNPJ: ${cpfLine}`]);
+            try {
+              sheet.mergeCells(insertAt2, 1, insertAt2, sheet.columnCount);
+            } catch (e) {}
+            const cell2 = sheet.getRow(insertAt2).getCell(1);
+            cell2.value = `CPF/CNPJ: ${cpfLine}`;
+            cell2.alignment = { horizontal: 'right' };
+            headerRowIndex += 1;
+          }
+        }
+      } catch (e) {}
+
       // remove existing data rows after header
       for (let i = sheet.rowCount; i > headerRowIndex; i--) {
         sheet.spliceRows(i, 1);
@@ -361,6 +432,22 @@ if (!ncmList.length) {
     if (formatoLimpo === "txt") {
       // Build TXT header
       let txt = "RELATÓRIO DE NCMs FIXADOS - PARAMETRIZZE\n\n";
+  // include generated-by info in TXT header when available
+  try {
+    const nameLine = requestUser && requestUser.name ? String(requestUser.name).trim() : '';
+    const cpfLine = requestUser && requestUser.cpfCnpj ? String(requestUser.cpfCnpj).trim() : '';
+    if (nameLine || cpfLine) {
+      const rightWidth = 120; // target width for right alignment in TXT
+      const l1 = `Relatorio gerado por: ${nameLine}`.trim();
+      txt += l1.length < rightWidth ? l1.padStart(rightWidth) + '\n' : l1 + '\n';
+      if (cpfLine) {
+        const l2 = `CPF/CNPJ: ${cpfLine}`;
+        txt += l2.length < rightWidth ? l2.padStart(rightWidth) + '\n' : l2 + '\n';
+      }
+      txt += '\n';
+    }
+  } catch (e) {}
+
   txt += "Código | Descrição | CST | cClasTrib | Aliq IBS | Aliq CBS\n";
       txt += "-------------------------------------------------------------------\n";
 

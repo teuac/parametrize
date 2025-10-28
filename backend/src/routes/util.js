@@ -15,6 +15,8 @@ const tabelaNcmsPath = path.join(__dirname, '..', 'utils', 'TABELA NCMS.xlsx');
 let tabelaNcmsCache = null;
 const tabelaCfopsPath = path.join(__dirname, '..', 'utils', 'TABELA CFOPS.xlsx');
 let tabelaCfopsCache = null;
+const tabelaNbsPath = path.join(__dirname, '..', 'utils', 'TABELA NBS.xlsx');
+let tabelaNbsCache = null;
 
 utilRouter.use(ensureAuth);
 
@@ -82,6 +84,85 @@ utilRouter.get('/tabela-cfops', async (req, res) => {
   } catch (err) {
     console.error('Erro ao ler TABELA CFOPS:', err && err.stack ? err.stack : err);
     res.status(500).json({ error: 'Erro ao ler tabela CFOPS', detail: err && err.message ? err.message : String(err) });
+  }
+});
+
+// Serve parsed TABELA NBS as JSON
+utilRouter.get('/tabela-nbs', async (req, res) => {
+  try {
+    if (!tabelaNbsCache) {
+      if (!fs.existsSync(tabelaNbsPath)) {
+        console.error('Arquivo TABELA NBS não encontrado em', tabelaNbsPath);
+        return res.status(404).json({ error: 'Arquivo TABELA NBS não encontrado no servidor' });
+      }
+      const fileBuffer = fs.readFileSync(tabelaNbsPath);
+      const workbook = xlsx.read(fileBuffer, { type: 'buffer', cellDates: true });
+      const sheetName = workbook.SheetNames && workbook.SheetNames[0];
+      const sheet = sheetName ? workbook.Sheets[sheetName] : null;
+      if (!sheet) {
+        console.error('Nenhuma planilha encontrada em', tabelaNbsPath);
+        return res.status(500).json({ error: 'Nenhuma planilha encontrada no arquivo' });
+      }
+      const raw = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: null });
+      const normalize = (s) => String(s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+      // try to find header row by common headers
+      let headerRowIndex = raw.findIndex((row) => Array.isArray(row) && row.some(cell => typeof cell === 'string' && (normalize(cell).includes('item') || normalize(cell).includes('item_lc') || normalize(cell).includes('item_lc_116'))) );
+      if (headerRowIndex === -1) {
+        headerRowIndex = raw.findIndex((row) => Array.isArray(row) && row.some(cell => cell !== null && cell !== ''));
+      }
+      if (headerRowIndex === -1) {
+        tabelaNbsCache = [];
+      } else {
+        const rawHeaders = raw[headerRowIndex].map(h => h === undefined || h === null ? '' : String(h));
+        // normalize headers: trim, replace NBSPs, remove diacritics and lowercase
+        const headers = rawHeaders.map(h => String(h).replace(/\u00A0/g, ' ').trim());
+        const normHeaders = headers.map(h => normalize(h).replace(/\s+/g, '_'));
+        const dataRows = raw.slice(headerRowIndex + 1);
+        tabelaNbsCache = dataRows.map((rarr) => {
+          const obj = {};
+          headers.forEach((h, idx) => {
+            const val = (Array.isArray(rarr) ? (rarr[idx] === undefined ? null : rarr[idx]) : null);
+            const nh = normHeaders[idx] || `col_${idx}`;
+            // Prepare a friendly form for matching (replace underscores with spaces)
+            const nhSpace = nh.replace(/_/g, ' ');
+
+            // Exact/priority mappings based on requested canonical names
+            const isItemExact = nh === 'item_lc_116' || nhSpace === 'item lc 116' || (nh.includes('item') && (nh.includes('lc') || nh.includes('116')));
+            const isDescricaoItem = nh === 'descricao_item' || nhSpace === 'descricao item' || nhSpace === 'descricao do item' || nhSpace === 'descricao do item';
+            const isNbs = nh === 'nbs' || nhSpace === 'nbs';
+            const isDescricaoNbs = nh === 'descricao_nbs' || nhSpace === 'descricao nbs' || nhSpace === 'descricao do nbs';
+
+            if (isItemExact) {
+              obj['item_lc_116'] = val;
+            } else if (isDescricaoItem) {
+              obj['descricao_item'] = val;
+            } else if (isNbs) {
+              obj['nbs'] = val;
+            } else if (isDescricaoNbs) {
+              obj['descricao_nbs'] = val;
+            } else {
+              // fallback heuristics: if header contains key words
+              if (nh.includes('nbs')) obj['nbs'] = val;
+              else if (nh.includes('item')) obj['item_lc_116'] = val;
+              else if (nh.includes('descricao') && nh.includes('nbs')) obj['descricao_nbs'] = val;
+              else if (nh.includes('descricao') && nh.includes('item')) obj['descricao_item'] = val;
+              else if (nh.includes('descricao')) {
+                // pick descricao_item by default
+                obj['descricao_item'] = val;
+              } else {
+                obj[nh] = val;
+              }
+            }
+          });
+          return obj;
+        });
+      }
+    }
+
+    res.json({ rows: tabelaNbsCache });
+  } catch (err) {
+    console.error('Erro ao ler TABELA NBS:', err && err.stack ? err.stack : err);
+    res.status(500).json({ error: 'Erro ao ler tabela NBS', detail: err && err.message ? err.message : String(err) });
   }
 });
 

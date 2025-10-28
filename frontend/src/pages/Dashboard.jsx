@@ -63,6 +63,43 @@ const ModalTitle = styled.h3`
   text-align: center;
 `;
 
+/* Clear pinned floating modal/button */
+const ClearModal = styled.div`
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  z-index: 11000;
+  transition: opacity 0.28s ease, transform 0.28s ease;
+  opacity: ${(p) => (p.visible ? 1 : 0)};
+  /* center horizontally using translateX(-50%) and animate vertically for show/hide */
+  transform: ${(p) => (p.visible ? 'translate(-50%, 0)' : 'translate(-50%, 8px)')};
+  pointer-events: ${(p) => (p.visible ? 'auto' : 'none')};
+`;
+
+const ClearModalInner = styled.div`
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const ClearButton = styled.button`
+  background: #ff4d4f; /* red */
+  color: #000; /* black text */
+  border: none;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+  transition: transform 0.12s ease, background 0.12s ease, opacity 0.18s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    background: #e04345;
+  }
+`;
+
 /* 🔹 NOVOS ESTILOS DO TOPO 🔹 */
 const SearchWrapper = styled.div`
   display: flex;
@@ -358,6 +395,16 @@ export default function Dashboard() {
   const [headerPinnedCodes, setHeaderPinnedCodes] = useState([]); // codes pinned via header click
   const [selectedCards, setSelectedCards] = useState([]); // array of `${codigo}-${cClas}`
   const [selectedAllCodes, setSelectedAllCodes] = useState([]); // array of codigo strings where all cards selected
+
+  // derived state: whether there is any pinned header/card
+  const hasPinned = (pinnedCodes && pinnedCodes.length > 0) || (headerPinnedCodes && headerPinnedCodes.length > 0) || (selectedCards && selectedCards.length > 0) || (selectedAllCodes && selectedAllCodes.length > 0);
+
+  function clearAllPinned() {
+    setPinnedCodes([]);
+    setHeaderPinnedCodes([]);
+    setSelectedCards([]);
+    setSelectedAllCodes([]);
+  }
 
   useEffect(() => {
     document.documentElement.classList.add("app-full-bleed");
@@ -757,6 +804,13 @@ export default function Dashboard() {
             </NcmGroup>
           )})}
         </Content>
+
+        {/* Floating clear pinned modal/button (appears only when any item is pinned) */}
+        <ClearModal visible={hasPinned} aria-hidden={!hasPinned}>
+          <ClearModalInner>
+            <ClearButton onClick={clearAllPinned}>Limpar fixados</ClearButton>
+          </ClearModalInner>
+        </ClearModal>
         {quotaModalOpen && (
           <ModalOverlay>
             <ModalBox>
