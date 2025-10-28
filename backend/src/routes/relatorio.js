@@ -420,6 +420,34 @@ if (!ncmList.length) {
         }
       }
 
+      // Apply borders only to the header row(s) and remove borders from other cells
+      try {
+        const headerIdx = headerRowIndex;
+        sheet.eachRow({ includeEmpty: true }, (row) => {
+          row.eachCell({ includeEmpty: true }, (cell) => {
+            if (row.number === headerIdx) {
+              // apply a thin border around header cells
+              cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' },
+              };
+              // make header font bold if possible
+              try { cell.font = Object.assign({}, cell.font || {}, { bold: true }); } catch (e) {}
+            } else {
+              // remove borders from non-header cells
+              cell.border = undefined;
+            }
+          });
+        });
+      } catch (e) { /* ignore if styling not supported */ }
+      // Also hide gridlines so the spreadsheet appears without lines when opened in Excel
+      try {
+        // ExcelJS: set worksheet view to hide gridlines
+        sheet.views = [{ showGridLines: false }];
+      } catch (e) { /* ignore if view property unsupported */ }
+
       const buffer = await workbook.xlsx.writeBuffer();
       res.setHeader('Content-Disposition', 'attachment; filename="relatorio_ncm.xlsx"');
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
