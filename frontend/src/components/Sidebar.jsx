@@ -195,6 +195,7 @@ const HelpButton = styled.button`
 export default function Sidebar() {
   const [toolsOpen, setToolsOpen] = useState(true);
   const [reformaOpen, setReformaOpen] = useState(true);
+  const [consultaOpen, setConsultaOpen] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -235,15 +236,26 @@ export default function Sidebar() {
                   <SubButton onClick={() => navigate('/')} active={location.pathname === '/'}>
                     Classificação Tributária
                   </SubButton>
-                  <SubButton onClick={() => navigate('/consulta-lote')} active={location.pathname === '/consulta-lote'}>
-                    Consulta em Lote
-                  </SubButton>
-                  <SubButton onClick={() => navigate('/import')} active={location.pathname === '/import'}>
-                    Importar Planilha
-                  </SubButton>
-                  <SubButton onClick={() => navigate('/download-modelo')} active={location.pathname === '/download-modelo'}>
-                    Download de Modelo
-                  </SubButton>
+
+                  {/* Consulta em Lote: toggleable group that contains Importar Planilha and Download de Modelo */}
+                  <div>
+                    <SubButton onClick={() => setConsultaOpen(v => !v)} active={location.pathname.startsWith('/consulta-lote') || location.pathname === '/import' || location.pathname === '/download-modelo'}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <span>Consulta em Lote</span>
+                        <span>{consultaOpen ? <ChevronDown /> : <ChevronRight />}</span>
+                      </div>
+                    </SubButton>
+                    {consultaOpen && (
+                      <SubNav style={{ marginLeft: 8 }}>
+                        <SubButton onClick={() => navigate('/import')} active={location.pathname === '/import'}>
+                          Importar Planilha
+                        </SubButton>
+                        <SubButton onClick={() => navigate('/download-modelo')} active={location.pathname === '/download-modelo'}>
+                          Download de Modelo
+                        </SubButton>
+                      </SubNav>
+                    )}
+                  </div>
                 </SubNav>
               </>
             )}
