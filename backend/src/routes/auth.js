@@ -50,7 +50,7 @@ authRouter.post('/forgot', async (req, res) => {
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
     });
 
-    const from = process.env.EMAIL_FROM || 'no-reply@parametrizze.com';
+    const from = process.env.EMAIL_FROM || 'no-reply@parametrize.com';
 
     const html = `
       <p>Você solicitou a recuperação de senha. Clique no link abaixo para criar uma nova senha (válido 1 hora):</p>

@@ -31,7 +31,7 @@ usersRouter.post('/', async (req, res) => {
         auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
       });
 
-      const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@parametrizze.com';
+      const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@parametrize.com';
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
       const html = `

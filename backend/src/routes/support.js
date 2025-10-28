@@ -16,7 +16,7 @@ supportRouter.post('/', async (req, res) => {
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
     });
 
-    const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@parametrizze.com';
+    const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@parametrize.com';
     const to = process.env.SUPPORT_EMAIL || 'parametrizesf@gmail.com';
 
     const html = `
@@ -29,7 +29,7 @@ supportRouter.post('/', async (req, res) => {
     await transporter.sendMail({
       from,
       to,
-      subject: 'Nova dúvida - Parametrizze',
+      subject: 'Nova dúvida - Parametrize',
       html,
       replyTo: email, // so replies go to the user's email
     });

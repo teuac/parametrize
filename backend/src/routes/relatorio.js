@@ -459,7 +459,7 @@ if (!ncmList.length) {
     // ===================================================================
     if (formatoLimpo === "txt") {
       // Build TXT header
-      let txt = "RELATÓRIO DE NCMs FIXADOS - PARAMETRIZZE\n\n";
+      let txt = "RELATÓRIO DE NCMs FIXADOS - PARAMETRIZE\n\n";
   // include generated-by info in TXT header when available
   try {
     const nameLine = requestUser && requestUser.name ? String(requestUser.name).trim() : '';
