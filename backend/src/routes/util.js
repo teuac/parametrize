@@ -507,30 +507,21 @@ utilRouter.post('/import-ncm', async (req, res) => {
 // Returns a small XLSX workbook to be used as import template
 utilRouter.get('/download-modelo', async (req, res) => {
   try {
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Modelo Importação');
+    const modeloPath = path.resolve(__dirname, '..', 'utils', 'Modelo Importacao.xlsx');
+    if (!fs.existsSync(modeloPath)) {
+      console.error('Arquivo de modelo não encontrado em', modeloPath);
+      return res.status(404).json({ error: 'Arquivo de modelo não encontrado no servidor' });
+    }
 
-    // Header (row 1) with the expected NCM column
-    sheet.getRow(1).values = [ , 'NCM' ];
-    sheet.getRow(1).font = { bold: true };
-
-    // Sample row (row 2) with an example NCM and a note
-    sheet.getRow(2).values = [ , '59020010' ];
-
-    // Small instruction row
-    sheet.getRow(4).values = [ , 'Observação: mantenha a coluna NCM com códigos sem pontos (ex.: 59020010) ou com pontos (59.02.00.10) — o import normaliza.' ];
-    sheet.getRow(4).alignment = { horizontal: 'left' };
-    sheet.getRow(4).font = { italic: true, size: 10 };
-
-    // Auto-size NCM column
-    sheet.getColumn(2).width = 30;
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    res.setHeader('Content-Disposition', `attachment; filename="modelo_importacao.xlsx"`);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    return res.send(Buffer.from(buffer));
+    // Use res.download to correctly set headers and handle streaming
+    return res.download(modeloPath, 'Modelo Importacao.xlsx', (err) => {
+      if (err) {
+        console.error('Erro ao enviar arquivo modelo:', err && err.stack ? err.stack : err);
+        if (!res.headersSent) res.status(500).json({ error: 'Erro ao enviar o arquivo de modelo' });
+      }
+    });
   } catch (err) {
-    console.error('Erro ao gerar modelo de importação:', err && err.stack ? err.stack : err);
-    return res.status(500).json({ error: 'Erro ao gerar modelo' });
+    console.error('Erro ao enviar modelo de importação:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ error: 'Erro ao enviar modelo' });
   }
 });
