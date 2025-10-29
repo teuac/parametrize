@@ -74,6 +74,7 @@ export default function HelpModal({ open, onClose }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [protocol, setProtocol] = useState(null);
   const [error, setError] = useState(null);
 
   if (!open) return null;
@@ -84,7 +85,8 @@ export default function HelpModal({ open, onClose }) {
     if (!email || !message) return setError('Preencha e-mail e mensagem');
     setLoading(true);
     try {
-      await api.post('/support', { email, message });
+      const res = await api.post('/support', { email, message });
+      setProtocol(res?.data?.protocol || null);
       setSent(true);
     } catch (err) {
       console.error(err);
@@ -118,6 +120,12 @@ export default function HelpModal({ open, onClose }) {
           <div>
             <Title>Mensagem enviada</Title>
             <p style={{ color: '#ccc' }}>Sua dúvida foi enviada com sucesso. Em breve responderemos para o e-mail informado.</p>
+            {protocol && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ color: '#ddd', fontSize: 13 }}>Protocolo:</div>
+                <div style={{ marginTop: 6, padding: '8px 10px', background: '#0f0f0f', borderRadius: 6, border: '1px solid #222' }}>{protocol}</div>
+              </div>
+            )}
             <Actions>
               <Button onClick={onClose} primary>Fechar</Button>
             </Actions>

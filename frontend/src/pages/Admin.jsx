@@ -2,6 +2,7 @@ import { useState } from 'react';
 import styled from 'styled-components';
 import AdminSidebar from '../components/AdminSidebar';
 import UsersCrud from '../components/UsersCrud';
+import AdminSupport from '../components/AdminSupport';
 
 const Page = styled.div`
   display: flex;
@@ -33,6 +34,7 @@ export default function Admin(){
             <p>Área de gerenciamento de NCMs (em desenvolvimento).</p>
           </div>
         )}
+        {view === 'support' && <AdminSupport />}
       </Content>
     </Page>
   );

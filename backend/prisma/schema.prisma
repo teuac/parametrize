@@ -25,6 +25,7 @@ model User {
   activeUpdatedAt DateTime?
   dailySearchLimit Int    @default(100)
   searches   SearchLog[]
+  supportTickets SupportTicket[]
   createdAt  DateTime @default(now())
 }
 
@@ -34,6 +35,19 @@ model SearchLog {
   userId    Int
   query     String?
   createdAt DateTime @default(now())
+}
+
+model SupportTicket {
+  id         Int      @id @default(autoincrement())
+  protocol   String?  @unique
+  email      String
+  message    String
+  user       User?    @relation(fields: [userId], references: [id])
+  userId     Int?
+  status     String   @default("open")
+  response   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Ncm {

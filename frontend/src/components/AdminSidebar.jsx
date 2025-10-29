@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
-import { Users, Layers, ArrowLeft, LogOut } from "lucide-react";
+import { Users, Layers, ArrowLeft, LogOut, HelpCircle } from "lucide-react";
 import Logo from './Logo'
 
 const SidebarContainer = styled.div`
@@ -100,6 +100,9 @@ export default function AdminSidebar({ view, onChangeView }){
           </NavButton>
           <NavButton active={view === 'ncm'} onClick={() => onChangeView('ncm')}>
             <Layers /> Gestão de NCM
+          </NavButton>
+          <NavButton active={view === 'support'} onClick={() => onChangeView('support')}>
+            <HelpCircle /> Suporte
           </NavButton>
           <NavButton onClick={() => navigate('/') }>
             <ArrowLeft /> Voltar para a tela inicial

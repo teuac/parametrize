@@ -47,6 +47,7 @@ const Table = styled.table`
   overflow: hidden;
   border: 1px solid #a8892a; /* system yellow border around the table */
   font-size: 0.95rem;
+  table-layout: fixed; /* prevent columns from stretching too far; allow wrapping in cells */
 `;
 const Th = styled.th`
   text-align: left;
@@ -143,8 +144,8 @@ export default function TabelaNcm() {
               <Table>
                 <thead>
                   <tr>
-                    <Th>Código</Th>
-                    <Th style={{ paddingRight: '24px' }}>Descrição</Th>
+                    <Th style={{ width: 160 }}>Código</Th>
+                    <Th>Descrição</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -155,8 +156,8 @@ export default function TabelaNcm() {
                     const RowTag = isTarget ? Highlight : 'tr';
                     return (
                       <RowTag key={globalIndex} ref={isTarget ? targetRef : null}>
-                        <Td>{r.codigo}</Td>
-                        <Td style={{ paddingLeft: '24px' }}>{r.descricao || r['descricao do produto'] || r['descricao_produto'] || r['descricao_completa'] || ''}</Td>
+                        <Td>{String(r.codigo || '').trim()}</Td>
+                        <Td style={{ paddingLeft: '12px', whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.descricao || r['descricao do produto'] || r['descricao_produto'] || r['descricao_completa'] || ''}</Td>
                       </RowTag>
                     );
                   })}
