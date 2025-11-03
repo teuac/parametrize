@@ -68,6 +68,7 @@ export default function TabelaNbs() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const [field, setField] = useState('item_lc_116');
   const [windowStart, setWindowStart] = useState(0);
   const pageSize = 21;
   const tableRef = useRef(null);
@@ -94,10 +95,30 @@ export default function TabelaNbs() {
 
   function locateByItem() {
     setMessage(null);
-    if (!query) return setMessage('Informe um item para localizar');
-    const normalize = (s) => String(s || '').toLowerCase().replace(/\./g, '').trim();
-    const idx = rows.findIndex(r => normalize(r.item_lc_116) === normalize(query));
-    const idx2 = rows.findIndex(r => normalize(r.item_lc_116).startsWith(normalize(query)));
+    if (!query) return setMessage('Informe um valor para localizar');
+    const normalize = (s) => {
+      const str = String(s || '');
+      // remove accents, then remove dots, commas, semicolons and colons, normalize whitespace and lowercase
+      return str
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .replace(/[.,;:]/g, '')
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+        .trim();
+    };
+
+    const getFieldValue = (r, f) => {
+      if (!r) return '';
+      if (f === 'item_lc_116') return r.item_lc_116;
+      if (f === 'descricao_item') return r.descricao_item || r['descricao item'] || r['descricao do item'] || '';
+      if (f === 'nbs') return r.nbs;
+      if (f === 'descricao_nbs') return r.descricao_nbs || r['descricao nbs'] || r['descricao do nbs'] || '';
+      return r[f] || '';
+    };
+
+    const idx = rows.findIndex(r => normalize(getFieldValue(r, field)) === normalize(query));
+    const idx2 = rows.findIndex(r => normalize(getFieldValue(r, field)).startsWith(normalize(query)));
     const found = idx >= 0 ? idx : idx2;
     if (found < 0) {
       setMessage('Item não encontrado');
@@ -126,7 +147,13 @@ export default function TabelaNbs() {
         <h2>Tabela NBS</h2>
         <p>Localizar por item LC 116: informe o código do item e o sistema levará você até a linha correspondente.</p>
         <SearchRow>
-          <Input placeholder="Item LC 116 (ex: 1)" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') locateByItem(); }} />
+          <select value={field} onChange={(e) => setField(e.target.value)} style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #ccc', background: '#0f0f0f', color: '#eee' }}>
+            <option value="item_lc_116">Item LC 116</option>
+            <option value="descricao_item">Descrição Item</option>
+            <option value="nbs">NBS</option>
+            <option value="descricao_nbs">Descrição NBS</option>
+          </select>
+          <Input placeholder={field === 'item_lc_116' ? 'Item LC 116 (ex: 1)' : field === 'descricao_item' ? 'Descrição do Item' : field === 'nbs' ? 'NBS (ex: 59020010)' : 'Descrição NBS'} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') locateByItem(); }} />
           <Button onClick={locateByItem}>Localizar</Button>
           <Button onClick={() => { setWindowStart(0); setQuery(''); setMessage(null); }}>Voltar ao topo</Button>
           {message && <div style={{ color: '#a8892a', marginLeft: 12 }}>{message}</div>}
@@ -149,8 +176,27 @@ export default function TabelaNbs() {
                 <tbody>
                   {visible.map((r, i) => {
                     const globalIndex = windowStart + i;
-                    const normalize = (s) => String(s || '').toLowerCase().replace(/\./g, '').trim();
-                    const isTarget = query && normalize(String(r.item_lc_116)).startsWith(normalize(query));
+                    const normalize = (s) => {
+                      const str = String(s || '');
+                      return str
+                        .normalize('NFD')
+                        .replace(/\p{Diacritic}/gu, '')
+                        .replace(/[.,;:]/g, '')
+                        .replace(/\s+/g, ' ')
+                        .toLowerCase()
+                        .trim();
+                    };
+                    const getFieldValue = (row, f) => {
+                      if (!row) return '';
+                      if (f === 'item_lc_116') return row.item_lc_116;
+                      if (f === 'descricao_item') return row.descricao_item || row['descricao item'] || row['descricao do item'] || '';
+                      if (f === 'nbs') return row.nbs;
+                      if (f === 'descricao_nbs') return row.descricao_nbs || row['descricao nbs'] || row['descricao do nbs'] || '';
+                      return row[f] || '';
+                    };
+
+                    const fieldVal = String(getFieldValue(r, field) || '');
+                    const isTarget = query && normalize(fieldVal).startsWith(normalize(query));
                     const RowTag = isTarget ? Highlight : 'tr';
                     return (
                       <RowTag key={globalIndex} ref={isTarget ? targetRef : null}>
