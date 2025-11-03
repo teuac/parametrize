@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
-import { HelpCircle, Settings, LogOut, ChevronDown, ChevronRight, FileText } from "lucide-react";
+import { HelpCircle, Settings, LogOut, ChevronDown, ChevronRight, FileText, Sun, Moon } from "lucide-react";
 import HelpModal from './HelpModal';
 import Logo from './Logo'
+import { useAppTheme } from '../contexts/ThemeContext';
 
 const SidebarContainer = styled.div`
   position: fixed;
@@ -11,12 +12,12 @@ const SidebarContainer = styled.div`
   top: 0;
   height: 100vh;
   width: 220px;
-  background: #0b0b0b;
-  color: #f5f5f5;
+  background: ${({ theme }) => theme.colors.bg};
+  color: ${({ theme }) => theme.colors.text};
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border-right: 1px solid #222;
+  border-right: 1px solid ${({ theme }) => theme.colors.border};
   padding: 30px 20px;
   box-sizing: border-box;
   z-index: 100;
@@ -35,7 +36,7 @@ const SidebarContainer = styled.div`
 
 const Title = styled.h1`
   font-size: 1.5rem;
-  color: #a8892a;
+  color: ${({ theme }) => theme.colors.accent};
   text-align: left;
   margin-top: 0;
   margin-bottom: 12px;
@@ -69,7 +70,7 @@ const GroupTitle = styled.button`
   justify-content: space-between;
   gap: 10px;
   background: transparent;
-  color: #f5f5f5;
+  color: ${({ theme }) => theme.colors.text};
   border: none;
   border-radius: 8px;
   padding: 10px 14px;
@@ -79,8 +80,8 @@ const GroupTitle = styled.button`
   transition: 0.2s;
 
   &:hover {
-    background: #1a1a1a;
-    color: #a8892a;
+    background: ${({ theme }) => theme.colors.hover};
+    color: ${({ theme }) => theme.colors.accent};
   }
 
   svg {
@@ -112,8 +113,8 @@ const NavButton = styled.button`
   gap: 10px;
   justify-content: flex-start;
   width: 100%;
-  background: ${({ active }) => (active ? "#1a1a1a" : "transparent")};
-  color: ${({ active }) => (active ? "#a8892a" : "#f5f5f5")};
+  background: ${({ active, theme }) => (active ? theme.colors.hover : 'transparent')};
+  color: ${({ active, theme }) => (active ? theme.colors.accent : theme.colors.text)};
   border: none;
   border-radius: 8px;
   padding: 10px 14px;
@@ -123,8 +124,8 @@ const NavButton = styled.button`
   transition: 0.3s;
 
   &:hover {
-    background: #1a1a1a;
-    color: #a8892a;
+    background: ${({ theme }) => theme.colors.hover};
+    color: ${({ theme }) => theme.colors.accent};
   }
 
   svg {
@@ -136,7 +137,7 @@ const NavButton = styled.button`
 const SubButton = styled(NavButton)`
   padding: 8px 12px;
   background: transparent;
-  color: #ddd;
+  color: ${({ theme }) => theme.colors.text};
   font-size: 0.85rem;
   border-radius: 6px;
   margin-left: 0;
@@ -149,8 +150,8 @@ const SubButton = styled(NavButton)`
   }
 
   &:hover {
-    color: #a8892a;
-    background: #111;
+    color: ${({ theme }) => theme.colors.accent};
+    background: ${({ theme }) => theme.colors.hover};
   }
 
   /* prevent wrapping so labels stay in one line; use ellipsis if too long */
@@ -192,6 +193,45 @@ const HelpButton = styled.button`
   }
 `;
 
+const SwitchWrap = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const SwitchButton = styled.button`
+  --w: 64px;
+  position: relative;
+  width: var(--w);
+  height: 34px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  cursor: pointer;
+  box-sizing: border-box;
+
+  svg { flex: 0 0 18px; color: ${({ theme }) => theme.colors.text}; }
+
+  &:focus { outline: 2px solid ${({ theme }) => theme.colors.accent}; outline-offset: 2px; }
+`;
+
+const SwitchThumb = styled.span`
+  position: absolute;
+  top: 4px;
+  left: ${(p) => (p.on ? '4px' : 'calc(var(--w) - 30px)')};
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: ${({ theme }) => theme.colors.accent};
+  transition: left 180ms ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+`;
+
 export default function Sidebar() {
   const [toolsOpen, setToolsOpen] = useState(true);
   const [reformaOpen, setReformaOpen] = useState(true);
@@ -215,6 +255,15 @@ export default function Sidebar() {
     } catch (e) {}
     // navigate to login
     navigate('/login');
+  };
+
+  const { themeName, setThemeName } = useAppTheme();
+
+  const toggleTheme = () => {
+    try {
+      const next = themeName === 'light' ? 'dark' : 'light';
+      setThemeName(next);
+    } catch (e) { console.error(e); }
   };
 
   return (
@@ -296,15 +345,28 @@ export default function Sidebar() {
       </div>
 
       <Footer>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <LogoutButton onClick={handleLogout}>
-            <LogOut /> Sair
-          </LogoutButton>
-          <HelpButton onClick={() => setHelpOpen(true)}>
-            <HelpCircle /> Ajuda
-          </HelpButton>
-          {helpOpen && <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />}
-        </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 6 }}>
+                <div style={{ fontSize: 12, color: 'inherit' }}>Tema</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <SwitchWrap>
+                      <SwitchButton onClick={toggleTheme} aria-label="Alternar tema" title="Alternar tema">
+                        <Sun size={16} />
+                        <Moon size={16} />
+                        <SwitchThumb on={themeName === 'light'} />
+                      </SwitchButton>
+                    </SwitchWrap>
+                  </div>
+              </div>
+
+              <LogoutButton onClick={handleLogout}>
+                <LogOut /> Sair
+              </LogoutButton>
+              <HelpButton onClick={() => setHelpOpen(true)}>
+                <HelpCircle /> Ajuda
+              </HelpButton>
+              {helpOpen && <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />}
+            </div>
       </Footer>
     </SidebarContainer>
   );

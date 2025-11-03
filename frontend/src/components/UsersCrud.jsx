@@ -21,11 +21,11 @@ const Controls = styled.div`
 `;
 
 const Card = styled.div`
-  background: #080808;
-  border: 1px solid #1f1f1f;
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 12px;
   padding: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
 `;
 
 const SearchWrapper = styled.div`
@@ -37,9 +37,9 @@ const SearchWrapper = styled.div`
 const SearchInput = styled.input`
   padding:8px 10px;
   border-radius:8px;
-  border:1px solid #333;
-  background:#0f0f0f;
-  color:#fff;
+  border:1px solid ${({ theme }) => theme.colors.border};
+  background:${({ theme }) => theme.colors.surface};
+  color:${({ theme }) => theme.colors.text};
   min-width:220px;
   height:38px;
   box-sizing: border-box;
@@ -47,11 +47,11 @@ const SearchInput = styled.input`
 
 const Title = styled.h2`
   margin:0;
-  color: #fff;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const NewBtn = styled.button`
-  background: #a8892a;
+  background: ${({ theme }) => theme.colors.accent};
   color: #0b0b0b;
   border: none;
   padding: 8px 12px;
@@ -66,19 +66,19 @@ const NewBtn = styled.button`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  color: #eee;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const Th = styled.th`
   text-align: left;
   padding: 10px 12px;
   font-size: 0.95rem;
-  color: #bbb;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const Td = styled.td`
   padding: 10px 12px;
-  border-top: 1px solid #222;
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const Actions = styled.div`
@@ -89,11 +89,11 @@ const Actions = styled.div`
 const IconBtn = styled.button`
   background: transparent;
   border: none;
-  color: #ddd;
+  color: ${({ theme }) => theme.colors.text};
   padding:6px;
   border-radius:6px;
   cursor:pointer;
-  &:hover{ background: rgba(255,255,255,0.03); color:#fff }
+  &:hover{ background: rgba(0,0,0,0.03); color: ${({ theme }) => theme.colors.text} }
 `;
 
 const ModalOverlay = styled.div`
@@ -107,12 +107,12 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalBox = styled.div`
-  background: #0b0b0b;
+  background: ${({ theme }) => theme.colors.surface};
   padding: 20px;
   border-radius: 10px;
   width: 100%;
   max-width: 520px;
-  border:1px solid #222;
+  border:1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const Field = styled.div`
@@ -125,17 +125,17 @@ const Field = styled.div`
 const Input = styled.input`
   padding:10px 12px;
   border-radius:8px;
-  border:1px solid #333;
-  background:#111;
-  color:#fff;
+  border:1px solid ${({ theme }) => theme.colors.border};
+  background:${({ theme }) => theme.colors.surface};
+  color:${({ theme }) => theme.colors.text};
 `;
 
 const Select = styled.select`
   padding:10px 12px;
   border-radius:8px;
-  border:1px solid #333;
-  background:#111;
-  color:#fff;
+  border:1px solid ${({ theme }) => theme.colors.border};
+  background:${({ theme }) => theme.colors.surface};
+  color:${({ theme }) => theme.colors.text};
 `;
 
 const ModalActions = styled.div`
@@ -145,11 +145,11 @@ const ModalActions = styled.div`
 `;
 
 const SaveBtn = styled.button`
-  background:#a8892a; color:#0b0b0b; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;
+  background:${({ theme }) => theme.colors.accent}; color:#0b0b0b; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;
 `;
 
 const CancelBtn = styled.button`
-  background:transparent; color:#ddd; border:1px solid #333; padding:8px 12px; border-radius:8px; cursor:pointer;
+  background:transparent; color:${({ theme }) => theme.colors.text}; border:1px solid ${({ theme }) => theme.colors.border}; padding:8px 12px; border-radius:8px; cursor:pointer;
 `;
 
 export default function UsersCrud(){

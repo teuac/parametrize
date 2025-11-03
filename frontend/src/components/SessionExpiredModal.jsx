@@ -12,8 +12,8 @@ const Overlay = styled.div`
 `;
 
 const Box = styled.div`
-  background: #0b0b0b;
-  color: #fff;
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
   padding: 24px;
   border-radius: 12px;
   width: min(92vw, 420px);

@@ -6,8 +6,8 @@ import Sidebar from '../components/Sidebar';
 const Layout = styled.div`
   display:flex;
   min-height:100vh;
-  background: #0b0b0b;
-  color: #f5f5f5;
+  background: ${({ theme }) => theme.colors.bg};
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const Content = styled.div`

@@ -9,8 +9,8 @@ const SidebarContainer = styled.div`
   top: 0;
   height: 100vh;
   width: 220px;
-  background: #0b0b0b;
-  color: #f5f5f5;
+  background: ${({ theme }) => theme.colors.bg};
+  color: ${({ theme }) => theme.colors.text};
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -33,7 +33,7 @@ const SidebarContainer = styled.div`
 
 const Title = styled.h1`
   font-size: 1.5rem;
-  color: #a8892a;
+  color: ${({ theme }) => theme.colors.accent};
   text-align: center;
   margin-top: -30px;
   margin-bottom: -12px;
@@ -59,15 +59,18 @@ const NavButton = styled.button`
   display: flex;
   align-items: center;
   gap: 10px;
-  background: ${({ active }) => (active ? "#1a1a1a" : "transparent")};
-  color: ${({ active }) => (active ? "#a8892a" : "#f5f5f5")};
+  background: ${({ active, theme }) => (active ? theme.colors.hover : 'transparent')};
+  color: ${({ active, theme }) => (active ? (theme.name === 'light' ? theme.colors.text : theme.colors.accent) : theme.colors.text)};
   border: none;
   border-radius: 8px;
   padding: 10px 14px;
   cursor: pointer;
   transition: 0.3s;
 
-  &:hover { background: #1a1a1a; color: #a8892a }
+  &:hover {
+    background: ${({ theme }) => theme.colors.hover};
+    color: ${({ theme }) => (theme.name === 'light' ? theme.colors.text : theme.colors.accent)};
+  }
 
   svg { height: 18px; width: 18px }
 `;

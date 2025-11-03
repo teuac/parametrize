@@ -8,14 +8,14 @@ import { Search, BookOpen, File, FileSpreadsheet, FileText, Pin, MapPin, AlertTr
 const Layout = styled.div`
   display: flex;
   min-height: 100vh;
-  background: #0b0b0b;
-  color: #f5f5f5;
+  background: ${({ theme }) => theme.colors.bg};
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const DashboardOverrides = createGlobalStyle`
   html.app-full-bleed,
   html.app-full-bleed body {
-    background: #0b0b0b !important;
+    background: ${({ theme }) => theme.colors.bg} !important;
     min-height: 100vh;
   }
   html.app-full-bleed #root {
@@ -45,17 +45,17 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalBox = styled.div`
-  background: #0b0b0b;
+  background: ${({ theme }) => theme.colors.surface};
   padding: 20px;
   border-radius: 10px;
   width: 100%;
   max-width: 520px;
-  border: 1px solid #222;
+  border: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const ModalTitle = styled.h3`
-  background: #a8892a; /* system yellow */
-  color: #0b0b0b;
+  background: ${({ theme }) => theme.colors.accent}; /* system yellow */
+  color: ${({ theme }) => theme.colors.primary};
   margin: -20px -20px 12px -20px; /* extend title background to modal edges */
   padding: 12px 16px;
   border-top-left-radius: 10px;
@@ -109,7 +109,8 @@ const SearchWrapper = styled.div`
 `;
 
 const InfoMessage = styled.p`
-  color: #aaa;
+  color: ${({ theme }) => theme.colors.text};
+  opacity: 0.85;
   font-size: 0.95rem;
   margin-bottom: 12px;
   text-align: center; /* center above the search bar */
@@ -144,24 +145,24 @@ const SearchBar = styled.div`
     flex: 1;
     padding: 14px 18px;
     border-radius: 10px;
-    border: 1px solid #333;
-    background: #1a1a1a;
-    color: #fff;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.text};
     font-size: 1rem;
     transition: all 0.2s ease;
 
     &:focus {
-      border-color: #a8892a;
+      border-color: ${({ theme }) => theme.colors.accent};
       outline: none;
-      box-shadow: 0 0 6px rgba(168, 137, 42, 0.5);
+      box-shadow: 0 0 6px rgba(168, 137, 42, 0.12);
     }
   }
 
-  button {
-    background: #a8892a;
+    button {
+    background: ${({ theme }) => theme.colors.accent};
     border: none;
     border-radius: 10px;
-    color: #0b0b0b;
+    color: ${({ theme }) => theme.colors.primary};
     padding: 12px 16px;
     cursor: pointer;
     display: flex;
@@ -169,7 +170,7 @@ const SearchBar = styled.div`
     transition: 0.3s;
 
     &:hover {
-      background: #b69733;
+      background: rgba(182,151,51,0.9);
     }
 
     svg {
@@ -230,13 +231,13 @@ const ReportButtons = styled.div`
 `;
 
 const SuggestionBox = styled.div`
-  background: #111;
-  border: 1px solid #333;
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 10px;
   overflow: hidden;
   max-height: 200px;
   overflow-y: auto;
-  box-shadow: 0 0 10px rgba(168, 137, 42, 0.15);
+  box-shadow: 0 0 10px rgba(168, 137, 42, 0.06);
   max-width: 600px;
   margin: 0 auto;
 `;
@@ -245,11 +246,11 @@ const SuggestionItem = styled.div`
   padding: 10px 15px;
   cursor: pointer;
   transition: 0.2s;
-  color: #ddd;
+  color: ${({ theme }) => theme.colors.text};
 
   &:hover {
-    background: #1f1f1f;
-    color: #a8892a;
+    background: ${({ theme }) => theme.colors.hover};
+    color: ${({ theme }) => theme.colors.accent};
   }
 `;
 
@@ -306,15 +307,15 @@ const Grid = styled.div`
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 15px;
   padding: 16px;
-  background: #111;
+  background: ${({ theme }) => theme.colors.surface};
 `;
 
 const Card = styled.div`
-  background: #1a1a1a;
-  border: 1px solid #333;
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 12px;
   padding: 16px 16px 60px;
-  box-shadow: 0 0 10px rgba(168, 137, 42, 0.08);
+  box-shadow: 0 0 10px rgba(168, 137, 42, 0.04);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -324,16 +325,16 @@ const Card = styled.div`
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0 16px rgba(168, 137, 42, 0.15);
+    box-shadow: 0 0 16px rgba(168, 137, 42, 0.08);
   }
 `;
 
 const Section = styled.div`
   font-size: 0.9rem;
-  color: #eee;
+  color: ${({ theme }) => theme.colors.text};
 
   strong {
-    color: #a8892a;
+    color: ${({ theme }) => theme.colors.accent};
   }
 
   p {
@@ -342,13 +343,13 @@ const Section = styled.div`
 `;
 
 const AliquotaBox = styled.div`
-  background: rgba(168, 137, 42, 0.1);
-  border: 1px solid #a8892a44;
+  background: rgba(168, 137, 42, 0.06);
+  border: 1px solid rgba(168,137,42,0.18);
   border-radius: 8px;
   padding: 8px 12px;
   margin-top: 10px;
   font-size: 0.9rem;
-  color: #f5f5f5;
+  color: ${({ theme }) => theme.colors.text};
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -362,12 +363,12 @@ const LawButtonContainer = styled.div`
   display: flex;
   justify-content: center;
   padding-top: 12px;
-  background: linear-gradient(0deg, rgba(26,26,26,1) 60%, rgba(26,26,26,0) 100%);
+  background: ${({ theme }) => theme.name === 'light' ? 'transparent' : 'linear-gradient(0deg, rgba(26,26,26,1) 60%, rgba(26,26,26,0) 100%)'};
 `;
 
 const LawButton = styled.a`
-  background: #a8892a;
-  color: #0b0b0b;
+  background: ${({ theme }) => theme.colors.accent};
+  color: ${({ theme }) => theme.colors.primary};
   font-weight: 600;
   padding: 8px 14px;
   border-radius: 8px;
@@ -379,7 +380,7 @@ const LawButton = styled.a`
   justify-content: center;
 
   &:hover {
-    background: #b69733;
+    background: rgba(182,151,51,0.9);
   }
 `;
 

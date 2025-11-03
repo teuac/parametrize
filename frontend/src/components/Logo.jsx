@@ -1,14 +1,14 @@
 import React from 'react'
 import styled from 'styled-components'
 import logoSrc from '../pages/logo.png'
-import { theme } from '../theme'
+import { useTheme } from 'styled-components'
 
 // a component that paints a PNG/SVG logo with the theme accent color using CSS mask
 const MaskedLogo = styled.div`
   width: ${props => props.size || '140px'};
   height: auto;
   aspect-ratio: 1 / 1;
-  background-color: ${props => props.color || theme.colors.accent};
+  background-color: ${props => props.color || props.theme?.colors?.accent};
   -webkit-mask-image: url(${logoSrc});
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-position: center;

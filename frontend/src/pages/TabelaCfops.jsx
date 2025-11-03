@@ -6,8 +6,8 @@ import Sidebar from '../components/Sidebar';
 const Layout = styled.div`
   display:flex;
   min-height:100vh;
-  background: #0b0b0b;
-  color: #f5f5f5;
+  background: ${({ theme }) => theme.colors.bg};
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const Content = styled.div`
@@ -119,6 +119,12 @@ export default function TabelaCfops() {
     };
 
     const qnorm = field === 'cfop' ? normalizeDigits(query) : normalizeText(query);
+    // if CFOP search but query contains no digits, avoid matching every row (empty qnorm matches all)
+    if (field === 'cfop' && !qnorm) {
+      setMatches([]);
+      setCurrentMatchIdx(-1);
+      return setMessage('Informe um código CFOP numérico para localizar');
+    }
     const foundIndices = [];
     rows.forEach((r, idx) => {
       const val = getFieldValue(r);

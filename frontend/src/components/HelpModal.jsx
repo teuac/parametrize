@@ -13,8 +13,8 @@ const Overlay = styled.div`
 `;
 
 const Modal = styled.div`
-  background: #0b0b0b;
-  color: #f5f5f5;
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
   width: 420px;
   max-width: calc(100% - 40px);
   border-radius: 10px;
@@ -38,17 +38,17 @@ const Field = styled.div`
 const Input = styled.input`
   padding: 10px 12px;
   border-radius: 6px;
-  border: 1px solid #222;
-  background: #0f0f0f;
-  color: #eee;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const Textarea = styled.textarea`
   padding: 10px 12px;
   border-radius: 6px;
-  border: 1px solid #222;
-  background: #0f0f0f;
-  color: #eee;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
   min-height: 120px;
   resize: vertical;
 `;
@@ -61,9 +61,9 @@ const Actions = styled.div`
 `;
 
 const Button = styled.button`
-  background: ${({ primary }) => (primary ? '#a8892a' : 'transparent')};
-  color: ${({ primary }) => (primary ? '#0b0b0b' : '#f5f5f5')};
-  border: ${({ primary }) => (primary ? 'none' : '1px solid #333')};
+  background: ${({ primary, theme }) => (primary ? theme.colors.accent : 'transparent')};
+  color: ${({ primary }) => (primary ? '#0b0b0b' : 'inherit')};
+  border: ${({ primary, theme }) => (primary ? 'none' : `1px solid ${theme.colors.border}`)};
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;

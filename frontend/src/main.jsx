@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { ThemeProvider } from './contexts/ThemeContext';
 import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Admin from './pages/Admin.jsx'
@@ -18,10 +19,11 @@ import SessionExpiredModal from './components/SessionExpiredModal.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
   <GlobalStyle /> {/* 👈 aplica o estilo global */}
   <SessionExpiredModal />
-      <Routes>
+        <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/recover" element={<RecoverRequest />} />
         <Route path="/recover/reset" element={<RecoverReset />} />
@@ -32,7 +34,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/tabela-ncm" element={<ProtectedRoute><TabelaNcm /></ProtectedRoute>} />
         <Route path="/tabela-cfops" element={<ProtectedRoute><TabelaCfops /></ProtectedRoute>} />
   <Route path="/tabela-nbs" element={<ProtectedRoute><TabelaNbs /></ProtectedRoute>} />
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
   </React.StrictMode>,
 )

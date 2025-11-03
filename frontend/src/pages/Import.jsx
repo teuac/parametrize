@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { theme } from '../theme';
+import { useTheme } from 'styled-components';
 import Sidebar from '../components/Sidebar';
 import { api } from '../api/http';
 import { UploadCloud, X } from 'lucide-react';
 
 export default function Import() {
+  const theme = useTheme();
   const [fileName, setFileName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -76,15 +77,15 @@ export default function Import() {
           width: '560px',
           borderRadius: 10,
           padding: 0,
-          background: '#0b0b0b',
+          background: theme.colors.surface,
           border: `2px solid ${theme.colors.accent}`,
-          boxShadow: '0 6px 20px rgba(0,0,0,0.6)'
+          boxShadow: '0 6px 20px rgba(0,0,0,0.06)'
         }}>
           <div style={{ background: theme.colors.accent, padding: '12px 18px', borderTopLeftRadius: 8, borderTopRightRadius: 8, display: 'flex', justifyContent: 'center' }}>
             <h3 style={{ margin: 0, color: '#111', textAlign: 'center' }}>Importação</h3>
           </div>
-          <div style={{ padding: 18, color: '#fff' }}>
-            <p style={{ marginTop: 0, marginBottom: 12, textAlign: 'center' }}>Carregue aqui a sua planilha</p>
+          <div style={{ padding: 18, color: theme.colors.text }}>
+            <p style={{ marginTop: 0, marginBottom: 12, textAlign: 'center', color: theme.colors.text }}>Carregue aqui a sua planilha</p>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
               <input
                 id="file-input"

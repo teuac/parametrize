@@ -13,8 +13,8 @@ export const GlobalStyle = createGlobalStyle`
   }
 
   html, body {
-    background-color: #0b0b0b;
-    color: #f5f5f5;
+    background-color: ${({ theme }) => theme.colors.bg};
+    color: ${({ theme }) => theme.colors.text};
     font-family: 'Montserrat', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -36,15 +36,15 @@ export const GlobalStyle = createGlobalStyle`
   }
 
   ::-webkit-scrollbar-track {
-    background: #111;
+    background: ${({ theme }) => theme.colors.scrollbarTrack};
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #a8892a;
+    background: ${({ theme }) => theme.colors.scrollbarThumb};
     border-radius: 8px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #b69733;
+    background: ${({ theme }) => theme.colors.scrollbarThumb};
   }
 `;
