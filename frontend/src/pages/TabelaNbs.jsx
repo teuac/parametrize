@@ -69,6 +69,8 @@ export default function TabelaNbs() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [field, setField] = useState('item_lc_116');
+  const [matches, setMatches] = useState([]);
+  const [currentMatchIdx, setCurrentMatchIdx] = useState(-1);
   const [windowStart, setWindowStart] = useState(0);
   const pageSize = 21;
   const tableRef = useRef(null);
@@ -117,18 +119,51 @@ export default function TabelaNbs() {
       return r[f] || '';
     };
 
-    const idx = rows.findIndex(r => normalize(getFieldValue(r, field)) === normalize(query));
-    const idx2 = rows.findIndex(r => normalize(getFieldValue(r, field)).startsWith(normalize(query)));
-    const found = idx >= 0 ? idx : idx2;
-    if (found < 0) {
-      setMessage('Item não encontrado');
+    // build list of all matching row indices (global indices)
+    const qnorm = normalize(query);
+    const foundIndices = [];
+    rows.forEach((r, idx) => {
+      const val = normalize(getFieldValue(r, field));
+      if (!val) return;
+      if (val.includes(qnorm)) foundIndices.push(idx);
+    });
+
+    if (!foundIndices.length) {
+      setMatches([]);
+      setCurrentMatchIdx(-1);
+      setMessage('Nenhuma ocorrência encontrada');
       return;
     }
+
+    setMatches(foundIndices);
+    // go to first match
+    setCurrentMatchIdx(0);
+    const first = foundIndices[0];
     const half = Math.floor(pageSize / 2);
-    let start = Math.max(0, found - half);
+    let start = Math.max(0, first - half);
     if (start + pageSize > rows.length) start = Math.max(0, rows.length - pageSize);
     setWindowStart(start);
 
+    setTimeout(() => {
+      if (targetRef.current) {
+        targetRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (tableRef.current) {
+        tableRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 80);
+  }
+
+  function goToMatch(dir) {
+    if (!matches.length) return;
+    let next = currentMatchIdx + dir;
+    if (next < 0) next = matches.length - 1;
+    if (next >= matches.length) next = 0;
+    setCurrentMatchIdx(next);
+    const idx = matches[next];
+    const half = Math.floor(pageSize / 2);
+    let start = Math.max(0, idx - half);
+    if (start + pageSize > rows.length) start = Math.max(0, rows.length - pageSize);
+    setWindowStart(start);
     setTimeout(() => {
       if (targetRef.current) {
         targetRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -155,7 +190,12 @@ export default function TabelaNbs() {
           </select>
           <Input placeholder={field === 'item_lc_116' ? 'Item LC 116 (ex: 1)' : field === 'descricao_item' ? 'Descrição do Item' : field === 'nbs' ? 'NBS (ex: 59020010)' : 'Descrição NBS'} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') locateByItem(); }} />
           <Button onClick={locateByItem}>Localizar</Button>
-          <Button onClick={() => { setWindowStart(0); setQuery(''); setMessage(null); }}>Voltar ao topo</Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button onClick={() => goToMatch(-1)} disabled={!matches.length}>◀</Button>
+            <div style={{ color: '#a8892a', minWidth: 80, textAlign: 'center' }}>{matches.length ? `${(currentMatchIdx >= 0 ? currentMatchIdx + 1 : 0)} / ${matches.length}` : '0 / 0'}</div>
+            <Button onClick={() => goToMatch(1)} disabled={!matches.length}>▶</Button>
+          </div>
+          <Button onClick={() => { setWindowStart(0); setQuery(''); setMatches([]); setCurrentMatchIdx(-1); setMessage(null); }}>Voltar ao topo</Button>
           {message && <div style={{ color: '#a8892a', marginLeft: 12 }}>{message}</div>}
         </SearchRow>
 
@@ -196,7 +236,7 @@ export default function TabelaNbs() {
                     };
 
                     const fieldVal = String(getFieldValue(r, field) || '');
-                    const isTarget = query && normalize(fieldVal).startsWith(normalize(query));
+                    const isTarget = matches.length && matches[currentMatchIdx] === globalIndex;
                     const RowTag = isTarget ? Highlight : 'tr';
                     return (
                       <RowTag key={globalIndex} ref={isTarget ? targetRef : null}>

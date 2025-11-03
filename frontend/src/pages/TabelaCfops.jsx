@@ -68,6 +68,9 @@ export default function TabelaCfops() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const [field, setField] = useState('cfop');
+  const [matches, setMatches] = useState([]);
+  const [currentMatchIdx, setCurrentMatchIdx] = useState(-1);
   const [windowStart, setWindowStart] = useState(0);
   const pageSize = 21;
   const tableRef = useRef(null);
@@ -95,20 +98,70 @@ export default function TabelaCfops() {
   function locateByCodigo() {
     setMessage(null);
     if (!query) return setMessage('Informe um código para localizar');
-  const normalize = (s) => String(s || '').replace(/\D/g, '').toLowerCase();
-  const qn = normalize(query);
-  const idx = rows.findIndex(r => normalize(detectRow(r).cfop) === qn);
-  const idx2 = rows.findIndex(r => normalize(detectRow(r).cfop).startsWith(qn));
-    const found = idx >= 0 ? idx : idx2;
-    if (found < 0) {
-      setMessage('Código não encontrado');
+    // normalize helpers
+    const normalizeText = (s) => {
+      const str = String(s || '');
+      return str
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .replace(/[.,;:]/g, '')
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+        .trim();
+    };
+    const normalizeDigits = (s) => String(s || '').replace(/\D/g, '').trim();
+
+    const getFieldValue = (row) => {
+      const { grupo, cfop, desc } = detectRow(row);
+      if (field === 'grupo') return grupo;
+      if (field === 'cfop') return cfop;
+      return desc;
+    };
+
+    const qnorm = field === 'cfop' ? normalizeDigits(query) : normalizeText(query);
+    const foundIndices = [];
+    rows.forEach((r, idx) => {
+      const val = getFieldValue(r);
+      const vnorm = field === 'cfop' ? normalizeDigits(val) : normalizeText(val);
+      if (!vnorm) return;
+      if (vnorm.includes(qnorm)) foundIndices.push(idx);
+    });
+
+    if (!foundIndices.length) {
+      setMatches([]);
+      setCurrentMatchIdx(-1);
+      setMessage('Nenhuma ocorrência encontrada');
       return;
     }
+
+    setMatches(foundIndices);
+    setCurrentMatchIdx(0);
+    const first = foundIndices[0];
     const half = Math.floor(pageSize / 2);
-    let start = Math.max(0, found - half);
+    let start = Math.max(0, first - half);
     if (start + pageSize > rows.length) start = Math.max(0, rows.length - pageSize);
     setWindowStart(start);
 
+    setTimeout(() => {
+      if (targetRef.current) {
+        targetRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (tableRef.current) {
+        tableRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 80);
+  }
+
+  function goToMatch(dir) {
+    if (!matches.length) return;
+    let next = currentMatchIdx + dir;
+    if (next < 0) next = matches.length - 1;
+    if (next >= matches.length) next = 0;
+    setCurrentMatchIdx(next);
+    const idx = matches[next];
+    const half = Math.floor(pageSize / 2);
+    let start = Math.max(0, idx - half);
+    if (start + pageSize > rows.length) start = Math.max(0, rows.length - pageSize);
+    setWindowStart(start);
     setTimeout(() => {
       if (targetRef.current) {
         targetRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -217,9 +270,19 @@ export default function TabelaCfops() {
         <h2>Tabela CFOPS</h2>
         <p>Localizar por código: informe o código CFOP e o sistema levará você até a linha correspondente mostrando linhas antes e depois.</p>
         <SearchRow>
-          <Input placeholder="CFOP (ex: 1101)" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') locateByCodigo(); }} />
+          <select value={field} onChange={(e) => setField(e.target.value)} style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #ccc', background: '#0f0f0f', color: '#eee' }}>
+            <option value="grupo">GRUPO_CFOP</option>
+            <option value="cfop">COD_CFOP</option>
+            <option value="desc">DESCRIÇÃO_CFOP</option>
+          </select>
+          <Input placeholder={field === 'cfop' ? 'CFOP (ex: 1101)' : field === 'grupo' ? 'Grupo CFOP' : 'Descrição CFOP'} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') locateByCodigo(); }} />
           <Button onClick={locateByCodigo}>Localizar</Button>
-          <Button onClick={() => { setWindowStart(0); setQuery(''); setMessage(null); }}>Voltar ao topo</Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button onClick={() => goToMatch(-1)} disabled={!matches.length}>◀</Button>
+            <div style={{ color: '#a8892a', minWidth: 80, textAlign: 'center' }}>{matches.length ? `${(currentMatchIdx >= 0 ? currentMatchIdx + 1 : 0)} / ${matches.length}` : '0 / 0'}</div>
+            <Button onClick={() => goToMatch(1)} disabled={!matches.length}>▶</Button>
+          </div>
+          <Button onClick={() => { setWindowStart(0); setQuery(''); setMatches([]); setCurrentMatchIdx(-1); setMessage(null); }}>Voltar ao topo</Button>
           {message && <div style={{ color: '#a8892a', marginLeft: 12 }}>{message}</div>}
         </SearchRow>
 
@@ -240,9 +303,20 @@ export default function TabelaCfops() {
                   {visible.map((r, i) => {
                     const globalIndex = windowStart + i;
                     const { grupo, cfop, desc } = detectRow(r);
-                    const cfopDigits = String(cfop || '').replace(/\D/g, '').toLowerCase();
-                    const qDigits = String(query || '').replace(/\D/g, '').toLowerCase();
-                    const isTarget = qDigits && cfopDigits.startsWith(qDigits);
+                    const normalizeText = (s) => {
+                      const str = String(s || '');
+                      return str
+                        .normalize('NFD')
+                        .replace(/\p{Diacritic}/gu, '')
+                        .replace(/[.,;:]/g, '')
+                        .replace(/\s+/g, ' ')
+                        .toLowerCase()
+                        .trim();
+                    };
+                    const normalizeDigits = (s) => String(s || '').replace(/\D/g, '').trim();
+
+                    const v = field === 'cfop' ? normalizeDigits(cfop) : field === 'grupo' ? normalizeText(grupo) : normalizeText(desc);
+                    const isTarget = matches.length && matches[currentMatchIdx] === globalIndex;
                     const RowTag = isTarget ? Highlight : 'tr';
                     return (
                       <RowTag key={globalIndex} ref={isTarget ? targetRef : null}>
