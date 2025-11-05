@@ -360,6 +360,19 @@ const AliquotaBox = styled.div`
   gap: 4px;
 `;
 
+const IsentoBadge = styled.div`
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(168,137,42,0.15);
+  border: 1px solid rgba(168,137,42,0.33);
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
 const LawButtonContainer = styled.div`
   position: absolute;
   bottom: 16px;
@@ -816,20 +829,7 @@ export default function Dashboard() {
                           </p>
 
                           {isIsento && (
-                            <div
-                              style={{
-                                marginTop: "8px",
-                                padding: "6px 10px",
-                                borderRadius: "6px",
-                                background: "rgba(168,137,42,0.15)",
-                                border: "1px solid #a8892a55",
-                                color: "#f5f5f5",
-                                fontSize: "0.85rem",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "6px",
-                              }}
-                            >
+                            <IsentoBadge>
                               {(() => {
                                 const cstText = {
                                   "400": "ISENÇÃO",
@@ -846,7 +846,7 @@ export default function Dashboard() {
                                   </>
                                 );
                               })()}
-                            </div>
+                            </IsentoBadge>
                           )}
                         </AliquotaBox>
 
