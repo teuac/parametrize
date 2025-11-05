@@ -164,12 +164,13 @@ if (!ncmList.length) {
   // === Tabela ===
   const startX = 40;
   // add a slightly larger vertical offset so the table starts a bit lower
-  let y = doc.y + 36;
+  // Increased offset to push the table a little further down the page.
+  let y = doc.y + 56;
   // compute available width between left startX and right margin (40)
   const availableWidth = doc.page.width - startX - 40; // page width minus left and right margins
   // keep some sensible minimums for small pages
   const minCodigo = 70;
-  const minClas = 80; // new column for cClasTrib
+  const minClas = 80; // new column for cClasstrib
   const minCst = 50;
   const minAliq = 70;
   // description gets the remaining space
@@ -181,7 +182,7 @@ if (!ncmList.length) {
     minAliq,
     minAliq,
   ];
-  const headers = ["Código", "Descrição", "CST", "cClasTrib", "Aliq IBS", "Aliq CBS"];
+  const headers = ["Código", "Descrição", "CST", "cClasstrib", "Aliq IBS", "Aliq CBS"];
 
   const drawCell = (text, x, y, width, height, align = "left") => {
     doc.rect(x, y, width, height).strokeColor("#999").lineWidth(0.3).stroke();
@@ -308,7 +309,7 @@ if (!ncmList.length) {
           { header: 'Código', key: 'codigo', width: 15 },
           { header: 'Descrição', key: 'descricao', width: 50 },
           { header: 'CST', key: 'cst', width: 12 },
-          { header: 'cClasTrib', key: 'cClasTrib', width: 15 },
+          { header: 'cClasstrib', key: 'cClasstrib', width: 15 },
           { header: 'Aliquota IBS', key: 'aliqIBS', width: 14 },
           { header: 'Aliquota CBS', key: 'aliqCBS', width: 14 },
         ];
@@ -410,7 +411,7 @@ if (!ncmList.length) {
           if (colMap['Código']) rowVals[colMap['Código']] = ncm.codigo;
           if (colMap['Descrição']) rowVals[colMap['Descrição']] = ncm.descricao;
           if (colMap['CST']) rowVals[colMap['CST']] = c.cstIbsCbs || '-';
-          if (colMap['cClasTrib']) rowVals[colMap['cClasTrib']] = padClas(c.codigoClassTrib);
+          if (colMap['cClasstrib']) rowVals[colMap['cClasstrib']] = padClas(c.codigoClassTrib);
           if (colMap['Aliquota IBS']) rowVals[colMap['Aliquota IBS']] = aliqIBSStr;
           if (colMap['Aliquota CBS']) rowVals[colMap['Aliquota CBS']] = aliqCBSStr;
 
@@ -476,7 +477,7 @@ if (!ncmList.length) {
     }
   } catch (e) {}
 
-  txt += "Código | Descrição | CST | cClasTrib | Aliq IBS | Aliq CBS\n";
+  txt += "Código | Descrição | CST | cClasstrib | Aliq IBS | Aliq CBS\n";
       txt += "-------------------------------------------------------------------\n";
 
       // Iterate and normalize classTrib like PDF/XLSX
