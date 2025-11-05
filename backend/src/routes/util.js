@@ -239,6 +239,33 @@ utilRouter.get('/tabela-ncm', async (req, res) => {
   }
 });
 
+// Get chapter by its two-digit code (chapter_code)
+utilRouter.get('/chapter/:code', async (req, res) => {
+  try {
+    const code = String(req.params.code || '').padStart(2, '0');
+    const chapter = await prisma.chapter.findUnique({ where: { chapter_code: code }, select: { chapter_code: true, description: true } });
+    if (!chapter) return res.status(404).json({ error: 'Chapter not found' });
+    return res.json(chapter);
+  } catch (err) {
+    console.error('Erro ao buscar chapter:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ error: 'Erro ao buscar chapter' });
+  }
+});
+
+// Get position by its four-digit code (position_code)
+utilRouter.get('/position/:code', async (req, res) => {
+  try {
+    // ensure code is 4 digits, pad with leading zeros if necessary
+    const code = String(req.params.code || '').padStart(4, '0');
+    const position = await prisma.position.findUnique({ where: { position_code: code }, select: { position_code: true, description: true } });
+    if (!position) return res.status(404).json({ error: 'Position not found' });
+    return res.json(position);
+  } catch (err) {
+    console.error('Erro ao buscar position:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ error: 'Erro ao buscar position' });
+  }
+});
+
 // POST /util/import-ncm
 // Accepts JSON { filename, data } where data is base64 XLSX content.
 // Returns an XLSX file with additional columns populated from DB lookups for each NCM found.
@@ -256,8 +283,14 @@ utilRouter.post('/import-ncm', async (req, res) => {
     const raw = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: null });
     const normalize = (s) => String(s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
-    // find header row index by looking for 'ncm' or 'codigo' and 'descr' presence
-    let headerRowIndex = raw.findIndex((row) => Array.isArray(row) && row.some(cell => typeof cell === 'string' && normalize(cell).includes('ncm')));
+    // Prefer the template where headers live on row 9 (1-based). If row 9 exists and contains 'ncm', use it.
+    let headerRowIndex = -1;
+    if (Array.isArray(raw[8]) && raw[8].some(cell => typeof cell === 'string' && normalize(cell).includes('ncm'))) {
+      headerRowIndex = 8; // zero-based index for row 9
+    } else {
+      // otherwise, find header row index by looking for 'ncm' or 'codigo' presence
+      headerRowIndex = raw.findIndex((row) => Array.isArray(row) && row.some(cell => typeof cell === 'string' && normalize(cell).includes('ncm')));
+    }
     if (headerRowIndex === -1) {
       headerRowIndex = raw.findIndex((row) => Array.isArray(row) && row.some(cell => typeof cell === 'string' && (normalize(cell).includes('codigo') || normalize(cell).includes('cod'))));
     }
@@ -268,14 +301,18 @@ utilRouter.post('/import-ncm', async (req, res) => {
     if (headerRowIndex === -1) return res.status(400).json({ error: 'Não foi possível localizar cabeçalho na planilha.' });
 
     const headers = raw[headerRowIndex].map(h => h === undefined || h === null ? '' : String(h));
-    // determine NCM column index
-    const ncmColIndex = headers.findIndex(h => normalize(h).includes('ncm') || normalize(h).includes('codigo'));
-    if (ncmColIndex === -1) return res.status(400).json({ error: 'Não foi encontrada coluna NCM na planilha.' });
+  // determine NCM column index
+  // Prefer exact header 'ncm' (normalized without spaces), then fallback to contains 'ncm' or 'codigo'
+  let ncmColIndex = headers.findIndex(h => normalize(h).replace(/\s+/g,'') === 'ncm');
+  if (ncmColIndex === -1) ncmColIndex = headers.findIndex(h => normalize(h).includes('ncm'));
+  if (ncmColIndex === -1) ncmColIndex = headers.findIndex(h => normalize(h).includes('codigo') || normalize(h).includes('cod'));
+  if (ncmColIndex === -1) return res.status(400).json({ error: 'Não foi encontrada coluna NCM na planilha.' });
 
   // prepare new headers for classTrib fields and insert them immediately after the NCM column
   // place codigoClassTrib after descricaoCstIbsCbs as requested
   // also add Aliquota IBS and Aliquota CBS computed with same logic as Dashboard cards
-  const extraCols = ['CST','Descrição','cClassTrib','Descrição ClassTrib','Red IBS','Red CBS','Aliquota IBS','Aliquota CBS','Base Legal - LC 214/25'];
+  // include NCM description from DB as the first extra column to return full NCM rows
+  const extraCols = ['Descrição NCM','CST','Descrição CST','cClassTrib','Descrição ClassTrib','Red IBS','Red CBS','Aliquota IBS','Aliquota CBS','Base Legal - LC 214/25'];
   const insertPos = ncmColIndex + 1; // insert after the NCM column
   const outHeaders = headers.slice(0, insertPos).concat(extraCols).concat(headers.slice(insertPos));
 
@@ -292,7 +329,13 @@ utilRouter.post('/import-ncm', async (req, res) => {
     // Build a set of unique normalized NCM codes from the sheet (to avoid repeated DB queries)
     const uniqueCodes = new Set();
     const parsedRows = dataRows.map((rowArr) => Array.isArray(rowArr) ? rowArr.slice() : []);
-    parsedRows.forEach((row) => {
+    // Keep only rows that have a value in the NCM column (skip empty rows)
+    const filteredRows = parsedRows.filter((row) => {
+      const cellVal = row[ncmColIndex];
+      const ncmRaw = cellVal === null || cellVal === undefined ? '' : String(cellVal).trim();
+      return ncmRaw !== '';
+    });
+    filteredRows.forEach((row) => {
       const cellVal = row[ncmColIndex];
       const ncmRaw = cellVal === null || cellVal === undefined ? '' : String(cellVal).trim();
       const norm = ncmRaw.replace(/\./g, '').replace(/\s+/g, '');
@@ -303,26 +346,103 @@ utilRouter.post('/import-ncm', async (req, res) => {
     const matchesMap = Object.create(null);
     for (const code of Array.from(uniqueCodes)) {
       try {
-        const found = await prisma.$queryRaw`
-          SELECT c."codigoClassTrib" as "codigoClassTrib",
-                 c."cstIbsCbs" as "cstIbsCbs",
-                 c."descricaoCstIbsCbs" as "descricaoCstIbsCbs",
-                 c."descricaoClassTrib" as "descricaoClassTrib",
-                 c."pRedIBS" as "pRedIBS",
-                 c."pRedCBS" as "pRedCBS",
-                 c."link" as "link"
-          FROM "Ncm" n
-          LEFT JOIN "ClassTrib" c ON n."cClasstrib" = c."codigoClassTrib"
-          WHERE REPLACE(n."codigo",'.','') = ${code};`;
+        // build candidate normalized forms to try in order
+        const digitsOnly = String(code || '').replace(/\D/g, '');
+        const candidates = new Set();
+        if (digitsOnly) candidates.add(digitsOnly);
+        // common Excel/formatting issues: leading zero stripped (length 7) -> try padStart
+        if (digitsOnly.length === 7) candidates.add(digitsOnly.padStart(8, '0'));
+        // if shorter (4 or 6), try padding to 8 on the right (typical NCM expansion)
+        if (digitsOnly.length > 0 && digitsOnly.length < 8) candidates.add(digitsOnly.padEnd(8, '0'));
+        // also try first 4 digits (position) as prefix search candidate
+        const first4 = digitsOnly.slice(0, 4);
+
+        let found = [];
+        // try each exact candidate using regexp_replace to remove any non-digits from DB side
+        for (const cand of Array.from(candidates)) {
+          if (!cand) continue;
+          try {
+            const q = await prisma.$queryRaw`
+              SELECT n."codigo" as "ncmCodigo",
+                     n."descricao" as "ncmDescricao",
+                     n."cClasstrib" as "ncmCClasstrib",
+                     c."codigoClassTrib" as "codigoClassTrib",
+                     c."cstIbsCbs" as "cstIbsCbs",
+                     c."descricaoCstIbsCbs" as "descricaoCstIbsCbs",
+                     c."descricaoClassTrib" as "descricaoClassTrib",
+                     c."pRedIBS" as "pRedIBS",
+                     c."pRedCBS" as "pRedCBS",
+                     c."link" as "link"
+              FROM "Ncm" n
+              LEFT JOIN "ClassTrib" c ON n."cClasstrib" = c."codigoClassTrib"
+              WHERE regexp_replace(n."codigo",'\\D','','g') = ${cand};`;
+            if (Array.isArray(q) && q.length) { found = q; break; }
+          } catch (e) {
+            console.error('Erro ao tentar match exato para', cand, e && e.stack ? e.stack : e);
+          }
+        }
+
+        // if still no results, try prefix match with the original normalized code
+        if ((!Array.isArray(found) || found.length === 0) && digitsOnly) {
+          try {
+            const q2 = await prisma.$queryRaw`
+              SELECT n."codigo" as "ncmCodigo",
+                     n."descricao" as "ncmDescricao",
+                     n."cClasstrib" as "ncmCClasstrib",
+                     c."codigoClassTrib" as "codigoClassTrib",
+                     c."cstIbsCbs" as "cstIbsCbs",
+                     c."descricaoCstIbsCbs" as "descricaoCstIbsCbs",
+                     c."descricaoClassTrib" as "descricaoClassTrib",
+                     c."pRedIBS" as "pRedIBS",
+                     c."pRedCBS" as "pRedCBS",
+                     c."link" as "link"
+              FROM "Ncm" n
+              LEFT JOIN "ClassTrib" c ON n."cClasstrib" = c."codigoClassTrib"
+              WHERE regexp_replace(n."codigo",'\\D','','g') LIKE ${digitsOnly} || '%'
+              LIMIT 10;`;
+            if (Array.isArray(q2) && q2.length) found = q2;
+          } catch (e) {
+            console.error('Erro no fallback prefix match para código', digitsOnly, e && e.stack ? e.stack : e);
+          }
+        }
+
+        // as a last attempt, try searching by position (first 4 digits) if available
+        if ((!Array.isArray(found) || found.length === 0) && first4 && first4.length === 4) {
+          try {
+            const q3 = await prisma.$queryRaw`
+              SELECT n."codigo" as "ncmCodigo",
+                     n."descricao" as "ncmDescricao",
+                     n."cClasstrib" as "ncmCClasstrib",
+                     c."codigoClassTrib" as "codigoClassTrib",
+                     c."cstIbsCbs" as "cstIbsCbs",
+                     c."descricaoCstIbsCbs" as "descricaoCstIbsCbs",
+                     c."descricaoClassTrib" as "descricaoClassTrib",
+                     c."pRedIBS" as "pRedIBS",
+                     c."pRedCBS" as "pRedCBS",
+                     c."link" as "link"
+              FROM "Ncm" n
+              LEFT JOIN "ClassTrib" c ON n."cClasstrib" = c."codigoClassTrib"
+              WHERE regexp_replace(n."codigo",'\\D','','g') LIKE ${first4} || '%'
+              LIMIT 10;`;
+            if (Array.isArray(q3) && q3.length) found = q3;
+          } catch (e) {
+            console.error('Erro no fallback position prefix match para', first4, e && e.stack ? e.stack : e);
+          }
+        }
+
         matchesMap[code] = Array.isArray(found) && found.length ? found : [];
+        if (!matchesMap[code].length) {
+          // log unmatched codes with the original raw code to help debugging
+          console.warn('Nenhuma correspondência encontrada para NCM (normalized):', code, 'candidates:', Array.from(candidates).join(','));
+        }
       } catch (err) {
         console.error('Erro ao buscar NCM durante import (batch):', err && err.stack ? err.stack : err);
         matchesMap[code] = [];
       }
     }
 
-    // Build output rows: for each input row, if there are multiple matches, emit multiple rows (one per match)
-    for (const row of parsedRows) {
+    // Build output rows: for each input row that had an NCM, if there are multiple matches, emit multiple rows (one per match)
+    for (const row of filteredRows) {
       const cellVal = row[ncmColIndex];
       const ncmRaw = cellVal === null || cellVal === undefined ? '' : String(cellVal).trim();
       const norm = ncmRaw.replace(/\./g, '').replace(/\s+/g, '');
@@ -352,6 +472,8 @@ utilRouter.post('/import-ncm', async (req, res) => {
           const pRedCBSDisplay = normPRedCBS === '' ? '' : (isNaN(Number(normPRedCBS)) ? normPRedCBS + '%' : `${parseFloat(normPRedCBS)}%`);
 
           const extraVals = [
+            // include NCM description from DB as first extra column
+            f.ncmDescricao || '',
             f.cstIbsCbs || '',
             f.descricaoCstIbsCbs || '',
             f.codigoClassTrib || '',
@@ -368,7 +490,8 @@ utilRouter.post('/import-ncm', async (req, res) => {
         }
       } else {
         // no matches — insert empty extra columns after NCM column
-        const outRow = baseRow.slice(0, insertPos).concat(['', '', '', '', '', '', '', '', '']).concat(baseRow.slice(insertPos));
+        const emptyExtras = Array(extraCols.length).fill('');
+        const outRow = baseRow.slice(0, insertPos).concat(emptyExtras).concat(baseRow.slice(insertPos));
         outRows.push(outRow);
       }
     }

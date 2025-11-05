@@ -76,3 +76,21 @@ model ClassTrib {
   ncm                      Ncm[]
 }
 
+model Chapter {
+  id            Int    @id @default(autoincrement())
+  chapter_code String @unique
+  description   String
+}
+
+// Model to store position codes and descriptions
+model Position {
+  id            Int    @id @default(autoincrement())
+  position_code String @unique
+  description   String
+}
+model Subposition {
+  id            Int    @id @default(autoincrement())
+  subposition_code String @unique
+  description   String
+}
+

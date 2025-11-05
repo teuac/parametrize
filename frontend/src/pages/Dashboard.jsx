@@ -262,43 +262,46 @@ const NcmGroup = styled.div`
 `;
 
 const NcmHeader = styled.div`
-  background: ${({ pinned }) => (pinned ? "#a8892a" : "#1a1a1a")};
-  color: ${({ pinned }) => (pinned ? "#0b0b0b" : "#f5f5f5")};
+  background: ${({ pinned, theme }) => (pinned ? theme.colors.accent : theme.colors.hover)};
+  color: ${({ pinned, theme }) => (pinned ? theme.colors.primary : theme.colors.text)};
   font-weight: 600;
   padding: 14px 18px;
   cursor: pointer;
   transition: 0.3s;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
+  align-items: flex-start; /* align left block to the top so code sits top-left */
   gap: 6px;
 
   &:hover {
-    background: ${({ pinned }) => (pinned ? "#b69733" : "#2a2a2a")};
+    background: ${({ pinned, theme }) => (pinned ? 'rgba(182,151,51,0.95)' : theme.colors.hover)};
   }
 
+  /* left-side block (code + chapter + small desc) */
   div {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
 
     strong {
-      color: ${({ pinned }) => (pinned ? "#0b0b0b" : "#a8892a")};
+      color: ${({ pinned, theme }) => (pinned ? theme.colors.primary : theme.colors.accent)};
       font-size: 1rem;
+      line-height: 1;
     }
 
     .desc {
       font-weight: 400;
-      color: ${({ pinned }) => (pinned ? "#222" : "#ddd")};
+      color: ${({ pinned, theme }) => (pinned ? theme.colors.primary : theme.colors.text)};
       font-size: 0.9rem;
+      opacity: 0.95;
     }
   }
 
   span:last-child {
     font-size: 0.85rem;
     opacity: 0.9;
+    align-self: flex-start;
   }
 `;
 
@@ -308,6 +311,8 @@ const Grid = styled.div`
   gap: 15px;
   padding: 16px;
   background: ${({ theme }) => theme.colors.surface};
+  justify-content: start; /* align columns to the left */
+  justify-items: start;   /* align items inside grid cells to the left */
 `;
 
 const Card = styled.div`
@@ -575,6 +580,53 @@ export default function Dashboard() {
     return acc;
   }, {});
 
+  // cache of chapter descriptions by two-digit chapter code (e.g. '01', '02')
+  const [chaptersMap, setChaptersMap] = useState({});
+  // cache of position descriptions by four-digit position code (e.g. '0101')
+  const [positionsMap, setPositionsMap] = useState({});
+
+  // fetch chapter (2-digit) and position (4-digit) descriptions for header codes not yet cached
+  useEffect(() => {
+    const codes = Object.keys(groupedItems || {});
+    // two-digit prefixes for chapters
+    const chapterPrefixes = Array.from(new Set(codes.map(c => String(c || '').slice(0,2))));
+    const chaptersToFetch = chapterPrefixes.filter(p => p && !chaptersMap[p]);
+
+    // four-digit prefixes for positions
+    const positionPrefixes = Array.from(new Set(codes.map(c => String(c || '').slice(0,4))));
+    const positionsToFetch = positionPrefixes.filter(p => p && !positionsMap[p]);
+
+    if (!chaptersToFetch.length && !positionsToFetch.length) return;
+
+    (async () => {
+      try {
+        // fetch chapters
+        for (const p of chaptersToFetch) {
+          try {
+            const { data } = await api.get(`/util/chapter/${encodeURIComponent(p)}`);
+            setChaptersMap(prev => ({ ...prev, [p]: data }));
+          } catch (err) {
+            // mark not found as null to avoid retrying repeatedly
+            setChaptersMap(prev => ({ ...prev, [p]: null }));
+          }
+        }
+
+        // fetch positions
+        for (const p of positionsToFetch) {
+          try {
+            const { data } = await api.get(`/util/position/${encodeURIComponent(p)}`);
+            setPositionsMap(prev => ({ ...prev, [p]: data }));
+          } catch (err) {
+            // mark not found as null to avoid retrying repeatedly
+            setPositionsMap(prev => ({ ...prev, [p]: null }));
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao buscar capítulos/posições:', err);
+      }
+    })();
+  }, [items]);
+
   return (
     <>
       <DashboardOverrides />
@@ -656,11 +708,32 @@ export default function Dashboard() {
                 pinned={pinnedCodes.includes(codigo)}
                 onClick={() => togglePin(codigo)}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <strong>{codigo}</strong>{" "}
-                  <span className="desc">{group[0].descricao}</span>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, flex: 1 }}>
+                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'flex-start', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', flexWrap: 'nowrap' }}>
+                      <strong style={{ flex: '0 0 auto' }}>{codigo}</strong>
+                      <span className="desc" style={{ fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 auto', minWidth: 0 }}>{group[0].descricao}</span>
+                    </div>
+                    {/* Posição (first 4 digits) shown above Capítulo */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ fontSize: '0.85rem', opacity: 0.95 }}>
+                        Posição: {(() => {
+                          const pref4 = String(codigo || '').slice(0,4);
+                          const pos = positionsMap[pref4];
+                          return pos && pos.description ? pos.description : '—';
+                        })()}
+                      </span>
+                      <span style={{ fontSize: '0.85rem', opacity: 0.9, textAlign: 'left' }}>
+                        Capítulo: {(() => {
+                          const pref = String(codigo || '').slice(0,2);
+                          const ch = chaptersMap[pref];
+                          return ch && ch.description ? ch.description : '—';
+                        })()}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <span>
+                <span style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   {/* Show "Fixado: todos" only when header was pinned and there are no individual selections for it */}
                   {((headerPinnedCodes.includes(codigo) && headerSelectedCount === 0 && !selectedAllCodes.includes(codigo)) || selectedAllCodes.includes(codigo)) ? (
                     <>
