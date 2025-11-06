@@ -333,9 +333,11 @@ const NcmHeader = styled.div`
     }
 
     .desc {
+      /* description should not be bold — keep code bold and description normal */
       font-weight: 400;
       color: ${({ pinned, theme }) => (pinned ? theme.colors.primary : theme.colors.text)};
-      font-size: 0.9rem;
+      font-size: 1rem;
+      line-height: 1;
       opacity: 0.95;
       text-align: center;
       /* don't grow — keep adjacent to the code */
@@ -348,14 +350,17 @@ const NcmHeader = styled.div`
     }
 
     .code-group {
-      display: flex;
+      /* keep code and description contiguous and underline them as one unit */
+      display: inline-flex;
       flex-direction: row;
       gap: 0; /* no gap so code and desc are contiguous */
       align-items: baseline;
       justify-content: center;
-      width: 100%;
+      width: auto; /* size to content so underline matches text width */
       overflow: hidden;
       justify-self: center;
+  border-bottom: 1px solid ${({ pinned, theme }) => (pinned ? theme.colors.primary : theme.colors.border)};
+  padding-bottom: 0px; /* brought underline even closer to the text */
     }
   }
 
@@ -674,9 +679,13 @@ export default function Dashboard() {
     const chapterPrefixes = Array.from(new Set(codes.map(c => String(c || '').slice(0,2))));
     const chaptersToFetch = chapterPrefixes.filter(p => p && !chaptersMap[p]);
 
-  // four-digit prefixes for positions
-  const positionPrefixes = Array.from(new Set(codes.map(c => String(c || '').slice(0,4))));
-  const positionsToFetch = positionPrefixes.filter(p => p && !positionsMap[p]);
+    // four-digit prefixes for positions
+    // normalize by removing non-digits, taking first 4 digits and padding to 4 so keys match backend
+    const positionPrefixes = Array.from(new Set(codes.map((c) => {
+      const digits = String(c || '').replace(/\D/g, '');
+      return String((digits || '').slice(0,4)).padStart(4, '0');
+    })));
+    const positionsToFetch = positionPrefixes.filter(p => p && p !== '0000' && !positionsMap[p]);
 
     // five-digit prefixes for subpositions
     // normalize by removing non-digits, taking first 5 digits and padding to 5 so keys match backend
@@ -815,37 +824,71 @@ export default function Dashboard() {
                     <div className="meta-group">
                       <span style={{ fontSize: '0.95rem', opacity: 0.9, textAlign: 'left' }}>
                         Capítulo: {(() => {
-                          const pref = String(codigo || '').slice(0,2);
-                          const ch = chaptersMap[pref];
+                          const digits = String(codigo || '').replace(/\D/g, '');
+                          const pref2 = String((digits || '').slice(0,2)).padStart(2, '0');
+                          const ch = chaptersMap[pref2];
                           return ch && ch.description ? cleanText(ch.description) : '—';
                         })()}
                       </span>
-                      <span style={{ fontSize: '0.95rem', opacity: 0.95, textAlign: 'left' }}>
-                        Posição: {(() => {
-                          const pref4 = String(codigo || '').slice(0,4);
-                          const pos = positionsMap[pref4];
-                          return pos && pos.description ? cleanText(pos.description) : '—';
-                        })()}
-                      </span>
-                                        <span style={{ fontSize: '0.95rem', opacity: 0.95, textAlign: 'left' }}>
-                                          Subposição: {(() => {
-                                            // compute the 5-digit numeric prefix: strip non-digits, take first 5 digits, pad with leading zeros
-                                            const digits = String(codigo || '').replace(/\D/g, '');
-                                            const pref5 = String((digits || '').slice(0,5)).padStart(5, '0');
-                                            const sub = subpositionsMap[pref5];
-                                            return sub && sub.description ? cleanText(sub.description) : '—';
-                                          })()}
-                                        </span>
+
+                      {(() => {
+                        // compute normalized prefixes
+                        const digits = String(codigo || '').replace(/\D/g, '');
+                        const pref4 = String((digits || '').slice(0,4)).padStart(4, '0');
+                        const pref5 = String((digits || '').slice(0,5)).padStart(5, '0');
+
+                        const pos = positionsMap[pref4];
+                        const sub = subpositionsMap[pref5];
+                        const ncmDesc = group[0]?.descricao || group[0]?.ncmDescricao || '';
+
+                        // Logic requested by user:
+                        // - if no position and no subposition -> position shows NCM description, subposition shows 'Nao se aplica'
+                        // - if chapter and position exist but no subposition -> subposition shows NCM description
+                        // - otherwise show available descriptions (or '—')
+
+                        let positionDisplay = '—';
+                        let subpositionDisplay = '—';
+
+                        const hasPosition = pos && pos.description;
+                        const hasSubposition = sub && sub.description;
+
+                        if (!hasPosition && !hasSubposition) {
+                          positionDisplay = ncmDesc ? cleanText(ncmDesc) : '—';
+                          subpositionDisplay = 'Nao se aplica';
+                        } else if (hasPosition && !hasSubposition) {
+                          positionDisplay = cleanText(pos.description);
+                          subpositionDisplay = ncmDesc ? cleanText(ncmDesc) : '—';
+                        } else {
+                          positionDisplay = hasPosition ? cleanText(pos.description) : (ncmDesc ? cleanText(ncmDesc) : '—');
+                          subpositionDisplay = hasSubposition ? cleanText(sub.description) : '—';
+                        }
+
+                        // sanitize subposition display: remove '-' and ':' characters and collapse spaces
+                        if (typeof subpositionDisplay === 'string' && subpositionDisplay !== '—' && subpositionDisplay !== 'Nao se aplica') {
+                          subpositionDisplay = subpositionDisplay.replace(/[-:]/g, '').replace(/\s+/g, ' ').trim();
+                        }
+
+                        return (
+                          <>
+                            <span style={{ fontSize: '0.95rem', opacity: 0.95, textAlign: 'left' }}>
+                              Posição: {positionDisplay}
+                            </span>
+                            <span style={{ fontSize: '0.95rem', opacity: 0.95, textAlign: 'left' }}>
+                              Subposição: {subpositionDisplay}
+                            </span>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
 
                   {/* center: código e descrição centralizados (aligned with capítulo vertically, centered horizontally) */}
                   <div className="header-center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', gap: 6, flex: '1 1 auto', minWidth: 0 }}>
                     {/* inner grouped block so code+desc are a single unit */}
-                    <div className="code-group">
+                   <u> <div className="code-group">
                       <strong>{codigo}</strong>{'\u00A0'}
-                      <span className="desc">{group[0].descricao || ''}</span>
-                    </div>
+                      <span className="desc">{group[0].descricao || ''}<strong></strong></span>
+                    </div></u>
                   </div>
                 </div>
                 <span style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
