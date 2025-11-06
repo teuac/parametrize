@@ -288,7 +288,8 @@ const NcmHeader = styled.div`
     span {
       text-align: left;
       font-size: 0.95rem;
-      color: #000; /* force black in both light and dark themes */
+      /* Use theme text color when not pinned, primary when pinned so dark theme remains readable */
+      color: ${({ pinned, theme }) => (pinned ? theme.colors.primary : theme.colors.text)};
       opacity: 1;
     }
 
@@ -301,13 +302,25 @@ const NcmHeader = styled.div`
     }
 
     .meta-group span {
-      display: block;
-      /* show full text inline without ellipsis or forced truncation */
-      overflow: visible;
+      /* Allow wrapping but only after a larger width to avoid early/ugly breaks.
+         Use inline-block so max-width applies; allow long words to break when needed. */
+      display: inline-block;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
       text-overflow: clip;
-      white-space: nowrap; /* keep on a single line */
-      max-width: none; /* allow the span to take the needed width */
-      word-break: normal;
+      max-width: 1200px; /* increased threshold before the text wraps */
+      /* ensure meta values inherit readable color based on pinned state */
+      color: ${({ pinned, theme }) => (pinned ? theme.colors.primary : theme.colors.text)};
+    }
+
+    /* On smaller viewports let the meta spans use full width and wrap naturally */
+    @media (max-width: 1200px) {
+      .meta-group span {
+        max-width: 100%;
+        display: block;
+        white-space: normal;
+      }
     }
   }
 
@@ -333,8 +346,8 @@ const NcmHeader = styled.div`
     }
 
     .desc {
-      /* description should not be bold — keep code bold and description normal */
-      font-weight: 400;
+      /* match the code font size/weight so description appears equal to code */
+      font-weight: 600;
       color: ${({ pinned, theme }) => (pinned ? theme.colors.primary : theme.colors.text)};
       font-size: 1rem;
       line-height: 1;
@@ -377,8 +390,12 @@ const Grid = styled.div`
   gap: 15px;
   padding: 16px;
   background: ${({ theme }) => theme.colors.surface};
-  justify-content: start; /* align columns to the left */
-  justify-items: start;   /* align items inside grid cells to the left */
+  /* center the grid when there are fewer columns and make items stretch to fill their cells
+     so sibling cards match heights and avoid gaps between cards */
+  justify-content: center;
+  justify-items: stretch;
+  align-items: stretch;
+  grid-auto-rows: 1fr;
 `;
 
 const Card = styled.div`
@@ -392,6 +409,9 @@ const Card = styled.div`
   justify-content: flex-start;
   position: relative;
   min-height: 360px;
+  /* fill the grid row height so sibling cards match */
+  height: 100%;
+  width: 100%;
   transition: all 0.25s ease;
 
   &:hover {
