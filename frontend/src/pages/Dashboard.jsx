@@ -269,6 +269,7 @@ const NcmHeader = styled.div`
   cursor: pointer;
   transition: 0.3s;
   display: flex;
+  position: relative; /* allow absolutely-positioning the centered block */
   justify-content: space-between;
   align-items: flex-start; /* align left block to the top so code sits top-left */
   gap: 6px;
@@ -277,17 +278,58 @@ const NcmHeader = styled.div`
     background: ${({ pinned, theme }) => (pinned ? 'rgba(182,151,51,0.95)' : theme.colors.hover)};
   }
 
-  /* left-side block (code + chapter + small desc) */
-  div {
+  /* left-side and center blocks - scoped classes to avoid globally styling all divs */
+    .header-left {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
 
+    span {
+      text-align: left;
+      font-size: 0.95rem;
+      color: #000; /* force black in both light and dark themes */
+      opacity: 1;
+    }
+
+    .meta-group {
+      display: flex;
+      flex-direction: column; /* capítulo above posição */
+      gap: 6px;
+      margin-top: 20px; /* moved down ~1 line to better align with center block */
+      align-items: flex-start;
+    }
+
+    .meta-group span {
+      display: block;
+      /* show full text inline without ellipsis or forced truncation */
+      overflow: visible;
+      text-overflow: clip;
+      white-space: nowrap; /* keep on a single line */
+      max-width: none; /* allow the span to take the needed width */
+      word-break: normal;
+    }
+  }
+
+  .header-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* center horizontally */
+    justify-content: flex-start; /* keep content at top */
+    gap: 0;
+  position: absolute; /* visually center across the header */
+  left: 50%;
+  transform: translateX(-50%);
+  top: 6px; /* move up one line compared to previous value */
+    z-index: 1;
+    max-width: 60%; /* avoid overlapping left/right blocks */
+
     strong {
       color: ${({ pinned, theme }) => (pinned ? theme.colors.primary : theme.colors.accent)};
       font-size: 1rem;
       line-height: 1;
+      flex: 0 0 auto;
+      margin-right: 0;
     }
 
     .desc {
@@ -295,6 +337,25 @@ const NcmHeader = styled.div`
       color: ${({ pinned, theme }) => (pinned ? theme.colors.primary : theme.colors.text)};
       font-size: 0.9rem;
       opacity: 0.95;
+      text-align: center;
+      /* don't grow — keep adjacent to the code */
+      flex: 0 1 auto;
+      min-width: 0; /* allow proper truncation */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+    }
+
+    .code-group {
+      display: flex;
+      flex-direction: row;
+      gap: 0; /* no gap so code and desc are contiguous */
+      align-items: baseline;
+      justify-content: center;
+      width: 100%;
+      overflow: hidden;
+      justify-self: center;
     }
   }
 
@@ -381,7 +442,8 @@ const LawButtonContainer = styled.div`
   display: flex;
   justify-content: center;
   padding-top: 12px;
-  background: ${({ theme }) => theme.name === 'light' ? 'transparent' : 'linear-gradient(0deg, rgba(26,26,26,1) 60%, rgba(26,26,26,0) 100%)'};
+  /* remove gradient so no background appears behind the button in any theme */
+  background: transparent;
 `;
 
 const LawButton = styled.a`
@@ -597,6 +659,13 @@ export default function Dashboard() {
   const [chaptersMap, setChaptersMap] = useState({});
   // cache of position descriptions by four-digit position code (e.g. '0101')
   const [positionsMap, setPositionsMap] = useState({});
+  // cache of subposition descriptions by five-digit subposition code (e.g. '01010')
+  const [subpositionsMap, setSubpositionsMap] = useState({});
+
+  // helper to remove internal newlines and collapse whitespace for inline labels
+  function cleanText(v) {
+    return String(v || '').replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+  }
 
   // fetch chapter (2-digit) and position (4-digit) descriptions for header codes not yet cached
   useEffect(() => {
@@ -605,9 +674,17 @@ export default function Dashboard() {
     const chapterPrefixes = Array.from(new Set(codes.map(c => String(c || '').slice(0,2))));
     const chaptersToFetch = chapterPrefixes.filter(p => p && !chaptersMap[p]);
 
-    // four-digit prefixes for positions
-    const positionPrefixes = Array.from(new Set(codes.map(c => String(c || '').slice(0,4))));
-    const positionsToFetch = positionPrefixes.filter(p => p && !positionsMap[p]);
+  // four-digit prefixes for positions
+  const positionPrefixes = Array.from(new Set(codes.map(c => String(c || '').slice(0,4))));
+  const positionsToFetch = positionPrefixes.filter(p => p && !positionsMap[p]);
+
+    // five-digit prefixes for subpositions
+    // normalize by removing non-digits, taking first 5 digits and padding to 5 so keys match backend
+    const subpositionPrefixes = Array.from(new Set(codes.map((c) => {
+      const digits = String(c || '').replace(/\D/g, '');
+      return String((digits || '').slice(0,5)).padStart(5, '0');
+    })));
+    const subpositionsToFetch = subpositionPrefixes.filter(p => p && p !== '00000' && !subpositionsMap[p]);
 
     if (!chaptersToFetch.length && !positionsToFetch.length) return;
 
@@ -632,6 +709,17 @@ export default function Dashboard() {
           } catch (err) {
             // mark not found as null to avoid retrying repeatedly
             setPositionsMap(prev => ({ ...prev, [p]: null }));
+          }
+        }
+
+        // fetch subpositions
+        for (const p of subpositionsToFetch) {
+          try {
+            const { data } = await api.get(`/util/subposition/${encodeURIComponent(p)}`);
+            setSubpositionsMap(prev => ({ ...prev, [p]: data }));
+          } catch (err) {
+            // mark not found as null to avoid retrying repeatedly
+            setSubpositionsMap(prev => ({ ...prev, [p]: null }));
           }
         }
       } catch (err) {
@@ -722,27 +810,41 @@ export default function Dashboard() {
                 onClick={() => togglePin(codigo)}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, flex: 1 }}>
-                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'flex-start', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', flexWrap: 'nowrap' }}>
-                      <strong style={{ flex: '0 0 auto' }}>{codigo}</strong>
-                      <span className="desc" style={{ fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 auto', minWidth: 0 }}>{group[0].descricao}</span>
-                    </div>
-                    {/* Posição (first 4 digits) shown above Capítulo */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span style={{ fontSize: '0.85rem', opacity: 0.95 }}>
-                        Posição: {(() => {
-                          const pref4 = String(codigo || '').slice(0,4);
-                          const pos = positionsMap[pref4];
-                          return pos && pos.description ? pos.description : '—';
-                        })()}
-                      </span>
-                      <span style={{ fontSize: '0.85rem', opacity: 0.9, textAlign: 'left' }}>
+                  {/* left: capítulo/posição aligned to the left corner */}
+                  <div className="header-left" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, flex: '0 1 auto' }}>
+                    <div className="meta-group">
+                      <span style={{ fontSize: '0.95rem', opacity: 0.9, textAlign: 'left' }}>
                         Capítulo: {(() => {
                           const pref = String(codigo || '').slice(0,2);
                           const ch = chaptersMap[pref];
-                          return ch && ch.description ? ch.description : '—';
+                          return ch && ch.description ? cleanText(ch.description) : '—';
                         })()}
                       </span>
+                      <span style={{ fontSize: '0.95rem', opacity: 0.95, textAlign: 'left' }}>
+                        Posição: {(() => {
+                          const pref4 = String(codigo || '').slice(0,4);
+                          const pos = positionsMap[pref4];
+                          return pos && pos.description ? cleanText(pos.description) : '—';
+                        })()}
+                      </span>
+                                        <span style={{ fontSize: '0.95rem', opacity: 0.95, textAlign: 'left' }}>
+                                          Subposição: {(() => {
+                                            // compute the 5-digit numeric prefix: strip non-digits, take first 5 digits, pad with leading zeros
+                                            const digits = String(codigo || '').replace(/\D/g, '');
+                                            const pref5 = String((digits || '').slice(0,5)).padStart(5, '0');
+                                            const sub = subpositionsMap[pref5];
+                                            return sub && sub.description ? cleanText(sub.description) : '—';
+                                          })()}
+                                        </span>
+                    </div>
+                  </div>
+
+                  {/* center: código e descrição centralizados (aligned with capítulo vertically, centered horizontally) */}
+                  <div className="header-center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', gap: 6, flex: '1 1 auto', minWidth: 0 }}>
+                    {/* inner grouped block so code+desc are a single unit */}
+                    <div className="code-group">
+                      <strong>{codigo}</strong>{'\u00A0'}
+                      <span className="desc">{group[0].descricao || ''}</span>
                     </div>
                   </div>
                 </div>

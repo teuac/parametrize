@@ -266,6 +266,22 @@ utilRouter.get('/position/:code', async (req, res) => {
   }
 });
 
+// Get subposition by its five-digit code (subposition_code)
+utilRouter.get('/subposition/:code', async (req, res) => {
+  try {
+    // normalize incoming param: strip non-digits, take first 5 digits, pad with leading zeros if necessary
+    const raw = String(req.params.code || '');
+    const digits = raw.replace(/\D/g, '');
+    const code = String((digits || '').slice(0, 5)).padStart(5, '0');
+    const subposition = await prisma.subposition.findUnique({ where: { subposition_code: code }, select: { subposition_code: true, description: true } });
+    if (!subposition) return res.status(404).json({ error: 'Subposition not found' });
+    return res.json(subposition);
+  } catch (err) {
+    console.error('Erro ao buscar subposition:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ error: 'Erro ao buscar subposition' });
+  }
+});
+
 // POST /util/import-ncm
 // Accepts JSON { filename, data } where data is base64 XLSX content.
 // Returns an XLSX file with additional columns populated from DB lookups for each NCM found.

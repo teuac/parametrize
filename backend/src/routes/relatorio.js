@@ -164,8 +164,7 @@ if (!ncmList.length) {
   // === Tabela ===
   const startX = 40;
   // add a slightly larger vertical offset so the table starts a bit lower
-  // Increased offset to push the table a little further down the page.
-  let y = doc.y + 56;
+  let y = doc.y + 36;
   // compute available width between left startX and right margin (40)
   const availableWidth = doc.page.width - startX - 40; // page width minus left and right margins
   // keep some sensible minimums for small pages
@@ -477,7 +476,7 @@ if (!ncmList.length) {
     }
   } catch (e) {}
 
-  txt += "Código | Descrição | CST | cClasstrib | Aliq IBS | Aliq CBS\n";
+  txt += "Código | Descrição | CST | cClassTrib | Aliq IBS | Aliq CBS\n";
       txt += "-------------------------------------------------------------------\n";
 
       // Iterate and normalize classTrib like PDF/XLSX
