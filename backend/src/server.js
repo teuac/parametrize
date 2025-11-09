@@ -6,6 +6,8 @@ import { usersRouter } from './routes/users.js';
 import { ncmRouter } from './routes/ncm.js';
 import { classTribRouter } from './routes/classTrib.js';
 import { chapterRouter } from './routes/chapter.js';
+import positionRouter from './routes/position.js';
+import subpositionRouter from './routes/subposition.js';
 import { utilRouter } from './routes/util.js';
 import relatorioRouter from "./routes/relatorio.js";
 import supportRouter from './routes/support.js';
@@ -28,6 +30,8 @@ app.use('/chapter', chapterRouter);
 app.use('/util', utilRouter);
 app.use("/relatorio", relatorioRouter);
 app.use('/support', supportRouter);
+app.use('/position', positionRouter);
+app.use('/subposition', subpositionRouter);
 //app.use('/importar-planilha', importRouter);
 
 // fallback
