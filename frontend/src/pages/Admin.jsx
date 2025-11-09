@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import AdminSidebar from '../components/AdminSidebar';
 import UsersCrud from '../components/UsersCrud';
 import AdminSupport from '../components/AdminSupport';
+import NcmAdmin from './admin/NcmAdmin';
 
 const Page = styled.div`
   display: flex;
@@ -28,12 +29,7 @@ export default function Admin(){
       <AdminSidebar view={view} onChangeView={setView} />
       <Content>
         {view === 'users' && <UsersCrud />}
-        {view === 'ncm' && (
-          <div style={{ padding: 24 }}>
-            <h2>Gestão de NCM</h2>
-            <p>Área de gerenciamento de NCMs (em desenvolvimento).</p>
-          </div>
-        )}
+        {view === 'ncm' && <NcmAdmin />}
         {view === 'support' && <AdminSupport />}
       </Content>
     </Page>

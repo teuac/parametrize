@@ -6,6 +6,17 @@ export const classTribRouter = Router();
 
 classTribRouter.use(ensureAuth);
 
+// listar todos (admin-friendly list)
+classTribRouter.get('/', async (req, res) => {
+  try {
+    const rows = await prisma.classTrib.findMany({ orderBy: { codigoClassTrib: 'asc' } });
+    res.json(rows);
+  } catch (err) {
+    console.error('Erro ao listar ClassTrib', err);
+    res.status(500).json({ error: 'Erro ao listar ClassTrib' });
+  }
+});
+
 // listar por NCM
 classTribRouter.get('/by-ncm/:ncmId', async (req, res) => {
   const ncmId = Number(req.params.ncmId);

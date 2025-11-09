@@ -158,13 +158,13 @@ if (!ncmList.length) {
   } catch (e) {}
 
   // Increase gap between header and table so the table appears lower on the page
-  // small additional push to move table a tiny bit further down
-  doc.moveDown(1.9);
+  // small additional push to move table further down than before
+  doc.moveDown(2.8);
 
   // === Tabela ===
   const startX = 40;
-  // add a slightly larger vertical offset so the table starts a bit lower
-  let y = doc.y + 36;
+  // add a larger vertical offset so the table starts noticeably lower
+  let y = doc.y + 48;
   // compute available width between left startX and right margin (40)
   const availableWidth = doc.page.width - startX - 40; // page width minus left and right margins
   // keep some sensible minimums for small pages
