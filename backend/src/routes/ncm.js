@@ -32,7 +32,13 @@ ncmRouter.get("/", async (req, res) => {
       }
     }
 
-    // Se não houver termo de busca, traz os primeiros 50
+    // If admin requested all items explicitly, return full list (admin only)
+    if (req.query.all && String(req.query.all) === '1' && req.user?.role === 'admin') {
+      const items = await prisma.ncm.findMany({ include: { classTrib: true }, orderBy: { codigo: 'asc' } });
+      return res.json(items);
+    }
+
+    // If no search term, return first 50 (regular behaviour)
     if (!q) {
       const items = await prisma.ncm.findMany({
         include: { classTrib: true },

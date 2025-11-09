@@ -120,7 +120,7 @@ const IconBtn = styled.button`
 export default function Ncm(){
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(''); // input bound value
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ codigo: '', descricao: '', cClasstrib: '' });
@@ -133,11 +133,43 @@ export default function Ncm(){
   async function fetchRows(){
     setLoading(true);
     try{
+      // default fetch: get first page (backend returns first 50 when no query)
       const res = await api.get('/ncm');
       setRows(res.data || []);
     }catch(err){ console.error(err) }
     setLoading(false);
   }
+
+  // load all (admin only on server side) - explicit action to avoid fetching everything by default
+  async function loadAll(){
+    setLoading(true);
+    try{
+      const res = await api.get('/ncm?all=1');
+      setRows(res.data || []);
+    }catch(err){ console.error(err) }
+    setLoading(false);
+  }
+
+  // Debounced server-side search: when `search` changes, call backend with ?q=
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const q = (search || '').trim();
+      (async () => {
+        if (!q) {
+          // empty search -> load default small set
+          await fetchRows();
+          return;
+        }
+        setLoading(true);
+        try{
+          const res = await api.get(`/ncm?q=${encodeURIComponent(q)}`);
+          setRows(res.data || []);
+        }catch(err){ console.error('Erro na busca server-side', err) }
+        setLoading(false);
+      })();
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const openNew = () => {
     setEditing(null);
@@ -200,9 +232,10 @@ export default function Ncm(){
         <Title>Gerenciamento de NCM</Title>
         <Controls>
           <SearchWrapper>
-            <SearchInput placeholder="Pesquisar por código ou descrição" value={search} onChange={e=>setSearch(e.target.value)} />
+              <SearchInput placeholder="Pesquisar por código ou descrição" value={search} onChange={e=>setSearch(e.target.value)} />
           </SearchWrapper>
-          <NewBtn onClick={openNew}><PlusCircle size={16} /> Novo NCM</NewBtn>
+            <NewBtn onClick={openNew}><PlusCircle size={16} /> Novo NCM</NewBtn>
+            <Button style={{ marginLeft: 8, background: 'transparent', color: 'inherit', border: '1px solid rgba(0,0,0,0.06)' }} onClick={loadAll}>Carregar todos</Button>
         </Controls>
       </Header>
 
@@ -218,9 +251,7 @@ export default function Ncm(){
               </tr>
             </thead>
             <tbody>
-              {rows
-                .filter(r => !search || (String(r.codigo || '') + ' ' + String(r.descricao || '')).toLowerCase().includes(search.toLowerCase()))
-                .map(r => (
+              {rows.map(r => (
                 <tr key={r.id}>
                   <Td style={{ whiteSpace: 'nowrap' }}>{r.codigo}</Td>
                   <Td>{r.descricao}</Td>
@@ -232,12 +263,12 @@ export default function Ncm(){
                     </Actions>
                   </Td>
                 </tr>
-              ))}
-              {rows.filter(r => !search || (String(r.codigo || '') + ' ' + String(r.descricao || '')).toLowerCase().includes(search.toLowerCase())).length === 0 && (
-                <tr>
-                  <Td colSpan={4} style={{ padding: 18, textAlign: 'center', color: '#888' }}>Nenhum NCM encontrado</Td>
-                </tr>
-              )}
+                ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <Td colSpan={4} style={{ padding: 18, textAlign: 'center', color: '#888' }}>Nenhum NCM encontrado</Td>
+                  </tr>
+                )}
             </tbody>
           </Table>
         )}

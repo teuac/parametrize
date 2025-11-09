@@ -1,7 +1,8 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
-import { Users, Layers, ArrowLeft, LogOut, HelpCircle } from "lucide-react";
+import { Users, Layers, ArrowLeft, LogOut, HelpCircle, Sun, Moon } from "lucide-react";
 import Logo from './Logo'
+import { useAppTheme } from '../contexts/ThemeContext'
 
 const SidebarContainer = styled.div`
   position: fixed;
@@ -84,9 +85,16 @@ const LogoutButton = styled(NavButton)`
   &:hover { background: rgba(255,107,107,0.06); color: #ff8b8b }
 `;
 
+const ThemeButton = styled(NavButton)`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
 export default function AdminSidebar({ view, onChangeView }){
   const navigate = useNavigate();
   const location = useLocation();
+  const { themeName, setThemeName } = useAppTheme();
 
   const handleLogout = () => {
     try{ localStorage.removeItem('token'); localStorage.removeItem('user'); }catch(e){}
@@ -114,6 +122,9 @@ export default function AdminSidebar({ view, onChangeView }){
       </div>
 
       <Footer>
+        <ThemeButton onClick={() => setThemeName(themeName === 'light' ? 'dark' : 'light')}>
+          {themeName === 'light' ? <Moon /> : <Sun />} Alternar tema
+        </ThemeButton>
         <LogoutButton onClick={handleLogout}><LogOut /> Sair</LogoutButton>
       </Footer>
     </SidebarContainer>

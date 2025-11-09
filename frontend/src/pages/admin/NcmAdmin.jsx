@@ -21,8 +21,8 @@ const Tab = styled.button`
   background: transparent;
   border: none;
   padding: 10px 14px;
-  color: ${({ active, theme }) => (active ? theme.colors.primary : theme.colors.text)};
-  border-bottom: 2px solid ${({ active, theme }) => (active ? theme.colors.primary : 'transparent')};
+  color: ${({ active, theme }) => (active ? (theme.name === 'dark' ? theme.colors.text : theme.colors.primary) : theme.colors.text)};
+  border-bottom: 2px solid ${({ active, theme }) => (active ? theme.colors.accent : 'transparent')};
   cursor: pointer;
   font-weight: 600;
   &:hover { opacity: 0.9 }

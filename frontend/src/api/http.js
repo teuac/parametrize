@@ -55,3 +55,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Default export for legacy imports (some files import `api` as the default)
+export default api;
