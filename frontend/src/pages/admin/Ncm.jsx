@@ -17,7 +17,9 @@ const Row = styled.div`
 const Input = styled.input`
   padding:8px 10px;
   border-radius:6px;
-  border:1px solid #ccc;
+  border:1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const Button = styled.button`
@@ -329,11 +331,11 @@ export default function Ncm(){
   );
 }
 
-// Modal styled components
+// Modal styled components (match Users modal style)
 const ModalOverlay = styled.div`
   position: fixed;
   inset:0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.6);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -346,7 +348,7 @@ const ModalBox = styled.div`
   padding: 20px;
   border-radius: 10px;
   width: 100%;
-  max-width: 640px;
+  max-width: 520px;
   border:1px solid ${({ theme }) => theme.colors.border};
 `;
 

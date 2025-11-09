@@ -96,22 +96,22 @@ const IconBtn = styled.button`
 
 const ModalOverlay = styled.div`
   position: fixed;
-  left: 0; right: 0; top: 0; bottom: 0;
-  background: rgba(0,0,0,0.4);
+  inset: 0;
+  background: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 60;
-`
+  z-index: 9999;
+`;
 
 const ModalBox = styled.div`
-  width: 520px;
   background: ${({ theme }) => theme.colors.surface};
-  color: ${({ theme }) => theme.colors.text};
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.2);
-`
+  padding: 20px;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 520px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+`;
 
 const Field = styled.div`
   display: flex;
@@ -155,7 +155,9 @@ const CancelBtn = styled.button`
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
+  color: ${({ theme }) => theme.colors.text};
 `
+;
 
 export default function Capitulo() {
   const [rows, setRows] = useState([])
