@@ -11,12 +11,15 @@ const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  gap: 12px;
+  min-height: 56px;
+  margin-bottom: 16px;
 `
 
 const Title = styled.h2`
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
   color: ${({ theme }) => theme.colors.text};
 `
 
@@ -225,7 +228,7 @@ export default function Capitulo() {
   return (
     <Container>
       <Header>
-        <Title>Capítulo - Gestão</Title>
+        <Title>Gestão de Capítulo</Title>
         <Controls>
           <SearchInput placeholder="Buscar código ou descrição" value={search} onChange={e => setSearch(e.target.value)} />
           <NewBtn onClick={openNew}><Plus size={14}/> Novo Capítulo</NewBtn>

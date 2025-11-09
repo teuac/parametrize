@@ -11,13 +11,16 @@ const Header = styled.div`
   display:flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  gap: 12px;
+  min-height: 56px;
+  margin-bottom: 16px;
 `;
 
 const Controls = styled.div`
   display:flex;
   gap:12px;
   align-items:center;
+  min-height: 38px;
 `;
 
 const Card = styled.div`
@@ -87,6 +90,8 @@ const IconBtn = styled.button`
 const Title = styled.h2`
   margin:0;
   color: ${({ theme }) => theme.colors.text};
+  font-size: 1.125rem;
+  font-weight: 600;
 `;
 
 const NewBtn = styled.button`
@@ -209,7 +214,7 @@ export default function ClasseTributaria(){
   return (
     <Container>
       <Header>
-        <Title>Classe Tributária</Title>
+        <Title>Gestão de Classe Tributária</Title>
         <Controls>
           <div />
           <NewBtn onClick={() => { setEditingId(null); setForm({ codigoClassTrib: '', cstIbsCbs: '', descricaoCstIbsCbs: '', descricaoClassTrib: '', lcRedacao: '', lc214_25: '', pRedIBS: '', pRedCBS: '', link: '' }); setModalOpen(true); }}><PlusCircle size={16} /> Nova Classe</NewBtn>

@@ -27,11 +27,11 @@ app.use('/users', usersRouter);
 app.use('/ncm', ncmRouter);
 app.use('/class-trib', classTribRouter);
 app.use('/chapter', chapterRouter);
+app.use('/position', positionRouter);
+app.use('/subposition', subpositionRouter);
 app.use('/util', utilRouter);
 app.use("/relatorio", relatorioRouter);
 app.use('/support', supportRouter);
-app.use('/position', positionRouter);
-app.use('/subposition', subpositionRouter);
 //app.use('/importar-planilha', importRouter);
 
 // fallback

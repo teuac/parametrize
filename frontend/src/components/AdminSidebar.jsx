@@ -85,10 +85,43 @@ const LogoutButton = styled(NavButton)`
   &:hover { background: rgba(255,107,107,0.06); color: #ff8b8b }
 `;
 
-const ThemeButton = styled(NavButton)`
-  display: flex;
+const SwitchWrap = styled.div`
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+`;
+
+const SwitchButton = styled.button`
+  --w: 64px;
+  position: relative;
+  width: var(--w);
+  height: 34px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  cursor: pointer;
+  box-sizing: border-box;
+
+  svg { flex: 0 0 18px; color: ${({ theme }) => theme.colors.text}; }
+
+  &:focus { outline: 2px solid ${({ theme }) => theme.colors.accent}; outline-offset: 2px; }
+`;
+
+const SwitchThumb = styled.span`
+  position: absolute;
+  top: 4px;
+  left: ${(p) => (p.on ? '4px' : 'calc(var(--w) - 30px)')};
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: ${({ theme }) => theme.colors.accent};
+  transition: left 180ms ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 `;
 
 export default function AdminSidebar({ view, onChangeView }){
@@ -122,10 +155,22 @@ export default function AdminSidebar({ view, onChangeView }){
       </div>
 
       <Footer>
-        <ThemeButton onClick={() => setThemeName(themeName === 'light' ? 'dark' : 'light')}>
-          {themeName === 'light' ? <Moon /> : <Sun />} Alternar tema
-        </ThemeButton>
-        <LogoutButton onClick={handleLogout}><LogOut /> Sair</LogoutButton>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 6 }}>
+            <div style={{ fontSize: 12, color: 'inherit' }}>Tema</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <SwitchWrap>
+                <SwitchButton onClick={() => setThemeName(themeName === 'light' ? 'dark' : 'light')} aria-label="Alternar tema" title="Alternar tema">
+                  <Sun size={16} />
+                  <Moon size={16} />
+                  <SwitchThumb on={themeName === 'light'} />
+                </SwitchButton>
+              </SwitchWrap>
+            </div>
+          </div>
+
+          <LogoutButton onClick={handleLogout}><LogOut /> Sair</LogoutButton>
+        </div>
       </Footer>
     </SidebarContainer>
   );
