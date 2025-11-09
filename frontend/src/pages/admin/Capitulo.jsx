@@ -17,6 +17,7 @@ const Header = styled.div`
 const Title = styled.h2`
   margin: 0;
   font-size: 1.1rem;
+  color: ${({ theme }) => theme.colors.text};
 `
 
 const Controls = styled.div`
@@ -28,13 +29,15 @@ const Controls = styled.div`
 const SearchInput = styled.input`
   padding: 8px 10px;
   border-radius: 6px;
-  border: 1px solid var(--border, #ccc);
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
   width: 260px;
 `
 
 const NewBtn = styled.button`
-  background: var(--primary, #2563eb);
-  color: white;
+  background: ${({ theme }) => theme.colors.accent};
+  color: #0b0b0b;
   border: none;
   padding: 8px 12px;
   border-radius: 6px;
@@ -45,7 +48,8 @@ const NewBtn = styled.button`
 `
 
 const Card = styled.div`
-  background: var(--card, #fff);
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 8px;
   padding: 12px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.04);
@@ -59,13 +63,14 @@ const Table = styled.table`
 const Th = styled.th`
   text-align: left;
   padding: 8px 6px;
-  color: var(--muted, #666);
+  color: ${({ theme }) => theme.colors.text};
   font-size: 0.9rem;
 `
 
 const Td = styled.td`
   padding: 10px 6px;
-  border-top: 1px solid rgba(0,0,0,0.04);
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
+  color: ${({ theme }) => theme.colors.text};
 `
 
 const Actions = styled.div`
@@ -82,8 +87,8 @@ const IconBtn = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--muted, #444);
-  &:hover { background: rgba(0,0,0,0.03); }
+  color: ${({ theme }) => theme.colors.text};
+  &:hover { background: ${({ theme }) => theme.colors.hover}; }
 `
 
 const ModalOverlay = styled.div`
@@ -98,7 +103,8 @@ const ModalOverlay = styled.div`
 
 const ModalBox = styled.div`
   width: 520px;
-  background: white;
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 6px 24px rgba(0,0,0,0.2);
@@ -113,13 +119,15 @@ const Field = styled.div`
 
 const Label = styled.label`
   font-size: 0.85rem;
-  color: var(--muted, #555);
+  color: ${({ theme }) => theme.colors.text};
 `
 
 const TextInput = styled.input`
   padding: 8px 10px;
   border-radius: 6px;
-  border: 1px solid #ddd;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
 `
 
 const ModalActions = styled.div`
@@ -130,8 +138,8 @@ const ModalActions = styled.div`
 `
 
 const SaveBtn = styled.button`
-  background: var(--primary, #2563eb);
-  color: white;
+  background: ${({ theme }) => theme.colors.accent};
+  color: #0b0b0b;
   border: none;
   padding: 8px 12px;
   border-radius: 6px;
@@ -140,7 +148,7 @@ const SaveBtn = styled.button`
 
 const CancelBtn = styled.button`
   background: transparent;
-  border: 1px solid #ddd;
+  border: 1px solid ${({ theme }) => theme.colors.border};
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
@@ -152,7 +160,7 @@ export default function Capitulo() {
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ codigo: '', descricao: '' })
+  const [form, setForm] = useState({ chapter_code: '', description: '' })
 
   useEffect(() => { fetchRows() }, [])
 
@@ -168,23 +176,24 @@ export default function Capitulo() {
 
   function openNew() {
     setEditing(null)
-    setForm({ codigo: '', descricao: '' })
+    setForm({ chapter_code: '', description: '' })
     setModalOpen(true)
   }
 
   function openEdit(row) {
     setEditing(row)
-    setForm({ codigo: row.codigo || row.code || '', descricao: row.descricao || row.description || '' })
+    setForm({ chapter_code: row.chapter_code || row.codigo || row.code || '', description: row.description || row.descricao || row.description || '' })
     setModalOpen(true)
   }
 
   async function save() {
     try {
-      if (!form.codigo) return alert('Código é obrigatório')
+      if (!form.chapter_code) return alert('Código é obrigatório')
+      const payload = { chapter_code: form.chapter_code, description: form.description }
       if (editing && editing.id) {
-        await api.put(`/chapter/${editing.id}`, { codigo: form.codigo, descricao: form.descricao })
+        await api.put(`/chapter/${editing.id}`, payload)
       } else {
-        await api.post('/chapter', { codigo: form.codigo, descricao: form.descricao })
+        await api.post('/chapter', payload)
       }
       setModalOpen(false)
       fetchRows()
@@ -208,7 +217,9 @@ export default function Capitulo() {
   const filtered = rows.filter(r => {
     if (!search) return true
     const s = search.toLowerCase()
-    return String(r.codigo || r.code || '').toLowerCase().includes(s) || String(r.descricao || r.description || '').toLowerCase().includes(s)
+    const code = String(r.chapter_code || r.codigo || r.code || '')
+    const desc = String(r.description || r.descricao || r.description || '')
+    return code.toLowerCase().includes(s) || desc.toLowerCase().includes(s)
   })
 
   return (
@@ -238,8 +249,8 @@ export default function Capitulo() {
             ) : (
               filtered.map(r => (
                 <tr key={r.id}>
-                  <Td style={{fontWeight:600}}>{r.codigo || r.code}</Td>
-                  <Td>{r.descricao || r.description}</Td>
+                  <Td style={{fontWeight:600}}>{r.chapter_code || r.codigo || r.code}</Td>
+                  <Td>{r.description || r.descricao || r.description}</Td>
                   <Td>
                     <Actions>
                       <IconBtn title="Editar" onClick={() => openEdit(r)}><Edit2 size={16} /></IconBtn>
@@ -259,11 +270,11 @@ export default function Capitulo() {
             <h3 style={{marginTop:0}}>{editing ? 'Editar Capítulo' : 'Novo Capítulo'}</h3>
             <Field>
               <Label>Código</Label>
-              <TextInput value={form.codigo} onChange={e => setForm({...form, codigo: e.target.value})} />
+              <TextInput value={form.chapter_code} onChange={e => setForm({...form, chapter_code: e.target.value})} />
             </Field>
             <Field>
               <Label>Descrição</Label>
-              <TextInput value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} />
+              <TextInput value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
             </Field>
 
             <ModalActions>
