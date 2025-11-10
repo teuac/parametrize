@@ -299,6 +299,12 @@ utilRouter.post('/import-ncm', async (req, res) => {
     const raw = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: null });
     const normalize = (s) => String(s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
+    // helper: pad classTrib/code to 6 digits (left-pad with zeros)
+    const padClass = (v) => {
+      if (v === null || v === undefined || v === '') return '';
+      return String(v).padStart(6, '0');
+    };
+
     // Prefer the template where headers live on row 9 (1-based). If row 9 exists and contains 'ncm', use it.
     let headerRowIndex = -1;
     if (Array.isArray(raw[8]) && raw[8].some(cell => typeof cell === 'string' && normalize(cell).includes('ncm'))) {
@@ -336,9 +342,7 @@ utilRouter.post('/import-ncm', async (req, res) => {
     const outRows = [];
     outRows.push(outHeaders);
 
-      // determine index of the Base Legal column in the output headers (zero-based)
-      const baseLegalHeader = 'Base Legal - LC 214/25';
-      const baseLegalColIndex = outHeaders.findIndex(h => String(h || '').trim() === baseLegalHeader);
+  // determine index of the Base Legal column in the output headers (zero-based)
 
     const dataRows = raw.slice(headerRowIndex + 1);
 
@@ -492,7 +496,7 @@ utilRouter.post('/import-ncm', async (req, res) => {
             f.ncmDescricao || '',
             f.cstIbsCbs || '',
             f.descricaoCstIbsCbs || '',
-            f.codigoClassTrib || '',
+            padClass(f.codigoClassTrib || ''),
             f.descricaoClassTrib || '',
             pRedIBSDisplay,
             pRedCBSDisplay,
@@ -511,6 +515,23 @@ utilRouter.post('/import-ncm', async (req, res) => {
         outRows.push(outRow);
       }
     }
+
+    // === Sanitize output: remove any unhelpful columns that come from user templates ===
+    // Remove columns whose header contains instruction text like 'insira os ncms'
+    const isUnwantedHeader = (h) => {
+      if (!h) return false;
+      try {
+        const hn = String(h).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+        return hn.includes('insira') && hn.includes('ncms');
+      } catch (e) {
+        return String(h).toLowerCase().includes('insira') && String(h).toLowerCase().includes('ncms');
+      }
+    };
+
+    // build sanitized headers/rows
+    const sanitizedHeaders = outHeaders.filter((h) => !isUnwantedHeader(h));
+    const badIndexes = outHeaders.map((h, i) => isUnwantedHeader(h) ? i : -1).filter(i => i >= 0);
+    const sanitizedOutRows = outRows.map((r) => r.filter((_, i) => !badIndexes.includes(i)));
 
     // create a new ExcelJS workbook so we can embed the logo and style the title
     const workbook = new ExcelJS.Workbook();
@@ -539,8 +560,8 @@ utilRouter.post('/import-ncm', async (req, res) => {
       console.error('Não foi possível inserir logo na planilha:', e && e.message ? e.message : e);
     }
 
-    // Title: merge cells from column after logo (logo now spans two columns) across to last column on row 1
-    const totalCols = outHeaders.length;
+  // Title: merge cells from column after logo (logo now spans two columns) across to last column on row 1
+  const totalCols = sanitizedHeaders.length;
     const titleColStart = 3; // logo spans A-B now, so title starts at C (immediately to the right)
     if (totalCols >= titleColStart) {
       // place the title on row 4 as requested
@@ -576,9 +597,9 @@ utilRouter.post('/import-ncm', async (req, res) => {
       console.error('Não foi possível buscar dados do usuário para inserir no arquivo:', e && e.message ? e.message : e);
     }
 
-    // leave space below the logo/title and write header later — shift headers/data down by 3 more rows
-    const headerRowIndexExcel = 7;
-    sheetExcel.getRow(headerRowIndexExcel).values = outHeaders;
+  // leave space below the logo/title and write header later — shift headers/data down by 3 more rows
+  const headerRowIndexExcel = 7;
+  sheetExcel.getRow(headerRowIndexExcel).values = sanitizedHeaders;
     // style header row
     const headerRow = sheetExcel.getRow(headerRowIndexExcel);
     headerRow.font = { bold: true };
@@ -600,10 +621,14 @@ utilRouter.post('/import-ncm', async (req, res) => {
     // hide Excel gridlines for a cleaner look
     sheetExcel.views = [{ showGridLines: false }];
 
+    // determine index of the Base Legal column in the sanitized headers (zero-based)
+    const baseLegalHeader = 'Base Legal - LC 214/25';
+    const baseLegalColIndex = sanitizedHeaders.findIndex(h => String(h || '').trim() === baseLegalHeader);
+
     // write data rows starting at headerRowIndexExcel + 1
     let excelRowIdx = headerRowIndexExcel + 1;
-    for (let i = 1; i < outRows.length; i++) {
-      const values = outRows[i];
+    for (let i = 1; i < sanitizedOutRows.length; i++) {
+      const values = sanitizedOutRows[i];
       const row = sheetExcel.getRow(excelRowIdx);
       // ExcelJS rows are 1-based and values should start at index 1
       row.values = [ , ...values];
