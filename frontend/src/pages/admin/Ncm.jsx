@@ -125,6 +125,11 @@ const IconBtn = styled.button`
 `;
 
 export default function Ncm(){
+  // helper: pad classTrib code to 6 digits for display
+  const padClassTrib = (v) => {
+    if (v === null || v === undefined || v === '') return '';
+    return String(v).padStart(6, '0');
+  };
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState(''); // input bound value
@@ -229,7 +234,7 @@ export default function Ncm(){
 
   function selectClass(option){
     setForm(prev => ({ ...prev, cClasstrib: option.codigoClassTrib }));
-    setClassFilter(`${option.codigoClassTrib} - ${option.descricaoClassTrib || ''}`);
+    setClassFilter(`${padClassTrib(option.codigoClassTrib)} - ${option.descricaoClassTrib || ''}`);
     setShowClassDropdown(false);
   }
 
@@ -262,7 +267,7 @@ export default function Ncm(){
                 <tr key={r.id}>
                   <Td style={{ whiteSpace: 'nowrap' }}>{r.codigo}</Td>
                   <Td>{r.descricao}</Td>
-                  <Td>{r.cClasstrib}</Td>
+                  <Td>{padClassTrib(r.cClasstrib)}</Td>
                   <Td>
                     <Actions>
                       <IconBtn title="Editar" onClick={()=>openEdit(r)}><Edit2 size={16} /></IconBtn>
@@ -296,7 +301,7 @@ export default function Ncm(){
             <Field style={{ position: 'relative' }}>
               <label>cClasstrib</label>
               <Input
-                value={classFilter || String(form.cClasstrib || '')}
+                value={classFilter || padClassTrib(form.cClasstrib)}
                 onChange={e => { setClassFilter(e.target.value); setShowClassDropdown(true); }}
                 onFocus={() => { setShowClassDropdown(true); fetchClassTribOptions(); }}
                 placeholder="Pesquisar código ou descrição"
@@ -304,16 +309,16 @@ export default function Ncm(){
               {showClassDropdown && (
                 <Dropdown>
                   {(classTribOptions || []).filter(opt => {
-                    const txt = `${opt.codigoClassTrib} ${opt.descricaoClassTrib || ''}`.toLowerCase();
+                    const txt = `${opt.codigoClassTrib} ${padClassTrib(opt.codigoClassTrib)} ${opt.descricaoClassTrib || ''}`.toLowerCase();
                     return !classFilter || txt.includes(classFilter.toLowerCase());
                   }).map(opt => (
                     <Option key={opt.id} onClick={() => selectClass(opt)}>
-                      <strong>{opt.codigoClassTrib}</strong>
+                      <strong>{padClassTrib(opt.codigoClassTrib)}</strong>
                       <div style={{ fontSize: 12, color: '#888' }}>{opt.descricaoClassTrib}</div>
                     </Option>
                   ))}
                   {(classTribOptions || []).filter(opt => {
-                    const txt = `${opt.codigoClassTrib} ${opt.descricaoClassTrib || ''}`.toLowerCase();
+                    const txt = `${opt.codigoClassTrib} ${padClassTrib(opt.codigoClassTrib)} ${opt.descricaoClassTrib || ''}`.toLowerCase();
                     return !classFilter || txt.includes(classFilter.toLowerCase());
                   }).length === 0 && <Option><em>Nenhum resultado</em></Option>}
                 </Dropdown>

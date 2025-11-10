@@ -157,6 +157,12 @@ const ModalActions = styled.div`
 `;
 
 export default function ClasseTributaria(){
+  // helper: pad class/code to 6 digits for display
+  const padClass = (v) => {
+    if (v === null || v === undefined || v === '') return '';
+    return String(v).padStart(6, '0');
+  };
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ codigoClassTrib: '', cstIbsCbs: '', descricaoCstIbsCbs: '', descricaoClassTrib: '', lcRedacao: '', lc214_25: '', pRedIBS: '', pRedCBS: '', link: '' });
@@ -237,7 +243,7 @@ export default function ClasseTributaria(){
                 </Field>
                 <Field>
                   <Label>Código</Label>
-                  <Input value={form.codigoClassTrib} onChange={e => setField('codigoClassTrib', e.target.value)} />
+                  <Input value={padClass(form.codigoClassTrib)} onChange={e => setField('codigoClassTrib', e.target.value)} />
                 </Field>
                 <Field>
                   <Label>Descrição</Label>
@@ -286,7 +292,7 @@ export default function ClasseTributaria(){
               {rows.map(r => (
                 <tr key={r.id}>
                   <Td>{r.cstIbsCbs}</Td>
-                  <Td>{r.codigoClassTrib}</Td>
+                  <Td>{padClass(r.codigoClassTrib)}</Td>
                   <Td>{r.descricaoClassTrib}</Td>
                   <Td>
                     <Actions>

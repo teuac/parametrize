@@ -169,7 +169,7 @@ if (!ncmList.length) {
   const availableWidth = doc.page.width - startX - 40; // page width minus left and right margins
   // keep some sensible minimums for small pages
   const minCodigo = 70;
-  const minClas = 80; // new column for cClasstrib
+  const minClas = 80; // new column for cClassTrib
   const minCst = 50;
   const minAliq = 70;
   // description gets the remaining space
@@ -181,7 +181,7 @@ if (!ncmList.length) {
     minAliq,
     minAliq,
   ];
-  const headers = ["Código", "Descrição", "CST", "cClasstrib", "Aliq IBS", "Aliq CBS"];
+  const headers = ["Código", "Descrição", "CST", "cClassTrib", "Aliq IBS", "Aliq CBS"];
 
   const drawCell = (text, x, y, width, height, align = "left") => {
     doc.rect(x, y, width, height).strokeColor("#999").lineWidth(0.3).stroke();
@@ -308,7 +308,7 @@ if (!ncmList.length) {
           { header: 'Código', key: 'codigo', width: 15 },
           { header: 'Descrição', key: 'descricao', width: 50 },
           { header: 'CST', key: 'cst', width: 12 },
-          { header: 'cClasstrib', key: 'cClasstrib', width: 15 },
+          { header: 'cClassTrib', key: 'cClassTrib', width: 15 },
           { header: 'Aliquota IBS', key: 'aliqIBS', width: 14 },
           { header: 'Aliquota CBS', key: 'aliqCBS', width: 14 },
         ];
@@ -316,24 +316,36 @@ if (!ncmList.length) {
 
       const sheet = workbook.worksheets[0];
 
-      // find header row by scanning for the 'Código' header
+      // Robust header-row detection: normalize (remove diacritics) so
+      // templates using 'Código' or 'Codigo' are treated the same.
+      const normalize = (s) => String(s || '')
+        .normalize('NFD')
+        .replace(/[ -]/g, (c) => c) // keep ASCII intact
+        .normalize('NFD')
+        .replace(/[ -]/g, (c) => c)
+        .replace(/\u0300|\u0301|\u0302|\u0303|\u0308/g, '')
+        .replace(/[\u0000-\u007f]/g, (c) => c)
+        .replace(/\p{Diacritic}/gu, '')
+        .normalize()
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+
       let headerRowIndex = null;
       for (let r = 1; r <= sheet.rowCount; r++) {
-        const firstCell = sheet.getRow(r).getCell(1).value;
-        if (firstCell && String(firstCell).trim() === 'Código') {
+        const row = sheet.getRow(r);
+        const vals = row.values || [];
+        // check if this row looks like the header by finding both a codigo and descricao-like header
+        let hasCodigo = false;
+        let hasDescr = false;
+        for (const v of vals) {
+          if (typeof v !== 'string') continue;
+          const vnorm = normalize(v);
+          if (vnorm.includes('cod') || vnorm.includes('codigo')) hasCodigo = true;
+          if (vnorm.includes('descr') || vnorm.includes('descricao')) hasDescr = true;
+        }
+        if (hasCodigo && hasDescr) {
           headerRowIndex = r;
           break;
-        }
-      }
-      if (!headerRowIndex) {
-        // fallback: try to find any header row that contains 'Descrição'
-        for (let r = 1; r <= sheet.rowCount; r++) {
-          const row = sheet.getRow(r);
-          const vals = row.values || [];
-          if (vals.some(v => typeof v === 'string' && v.includes('Descrição'))) {
-            headerRowIndex = r;
-            break;
-          }
         }
       }
       if (!headerRowIndex) headerRowIndex = 6; // final fallback
@@ -377,14 +389,37 @@ if (!ncmList.length) {
 
       const headerRow = sheet.getRow(headerRowIndex);
       // build header->colIndex map
-      const colMap = {};
+      // Build a header -> index map using a normalized key (no accents),
+      // making matching tolerant to accents and casing.
+      const headerLowerMap = {};
+      const normalizeForKey = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
       for (let c = 1; c <= sheet.columnCount; c++) {
         const h = headerRow.getCell(c).value;
-        if (h) colMap[String(h).trim()] = c;
+        if (!h) continue;
+        const key = normalizeForKey(h);
+        headerLowerMap[key] = c; // store column index (1-based)
       }
 
-      // start inserting data right below header
-      let insertAt = headerRowIndex + 1;
+      // Helper to find a column by requiring that all fragments are present
+      // in the lower-cased header name. This makes matching robust to
+      // small template differences like 'cClasstrib' vs 'cClassTrib'.
+      const findColByFragments = (fragments = []) => {
+        const fLower = fragments.map((s) => normalizeForKey(s));
+        for (const key of Object.keys(headerLowerMap)) {
+          let ok = true;
+          for (const frag of fLower) {
+            if (!key.includes(frag)) {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) return headerLowerMap[key];
+        }
+        return null;
+      };
+
+  // start inserting data right below header
+  let insertAt = headerRowIndex + 1;
       for (const ncm of ncmList) {
         const classTribs = Array.isArray(ncm.classTrib)
           ? ncm.classTrib
@@ -407,12 +442,23 @@ if (!ncmList.length) {
 
           // build a 1-based array where index matches column number
           const rowVals = [];
-          if (colMap['Código']) rowVals[colMap['Código']] = ncm.codigo;
-          if (colMap['Descrição']) rowVals[colMap['Descrição']] = ncm.descricao;
-          if (colMap['CST']) rowVals[colMap['CST']] = c.cstIbsCbs || '-';
-          if (colMap['cClasstrib']) rowVals[colMap['cClasstrib']] = padClas(c.codigoClassTrib);
-          if (colMap['Aliquota IBS']) rowVals[colMap['Aliquota IBS']] = aliqIBSStr;
-          if (colMap['Aliquota CBS']) rowVals[colMap['Aliquota CBS']] = aliqCBSStr;
+
+          // Attempt to detect the main columns in a flexible way so templates
+          // with small header variations still work.
+          const colCodigo = findColByFragments(['cod']);
+          const colDesc = findColByFragments(['descr']);
+          const colCst = findColByFragments(['cst']);
+          // class column: match headers that contain both 'clas' and 'trib'
+          const colClas = findColByFragments(['clas', 'trib']);
+          const colAliqIbs = findColByFragments(['aliq', 'ibs']) || findColByFragments(['aliq', 'ib']);
+          const colAliqCbs = findColByFragments(['aliq', 'cbs']) || findColByFragments(['aliq', 'cb']);
+
+          if (colCodigo) rowVals[colCodigo] = ncm.codigo;
+          if (colDesc) rowVals[colDesc] = ncm.descricao;
+          if (colCst) rowVals[colCst] = c.cstIbsCbs || '-';
+          if (colClas) rowVals[colClas] = padClas(c.codigoClassTrib);
+          if (colAliqIbs) rowVals[colAliqIbs] = aliqIBSStr;
+          if (colAliqCbs) rowVals[colAliqCbs] = aliqCBSStr;
 
           // insert row at position
           sheet.spliceRows(insertAt, 0, rowVals);
