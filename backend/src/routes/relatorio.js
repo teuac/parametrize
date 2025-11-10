@@ -235,11 +235,12 @@ if (!ncmList.length) {
 
       // measure heights for each cell's text to allow wrapping and dynamic row height
       const paddingV = 10; // vertical padding inside cell (top+bottom)
-      const hCodigo = doc.heightOfString(String(ncm.codigo || ""), { width: colWidths[0] - 8 });
-      const hDesc = doc.heightOfString(String(ncm.descricao || ""), { width: colWidths[1] - 8 });
+    const hCodigo = doc.heightOfString(String(ncm.codigo || ""), { width: colWidths[0] - 8 });
+    const hDesc = doc.heightOfString(String(ncm.descricao || ""), { width: colWidths[1] - 8 });
   const formattedClas = padClas(c.codigoClassTrib);
-  const hClas = doc.heightOfString(String(formattedClas || ""), { width: colWidths[2] - 8 });
-      const hCst = doc.heightOfString(String(c.cstIbsCbs || "-"), { width: colWidths[3] - 8 });
+  // column widths: [0]=Código, [1]=Descrição, [2]=CST, [3]=cClassTrib, [4]=Aliq IBS, [5]=Aliq CBS
+  const hClas = doc.heightOfString(String(formattedClas || ""), { width: colWidths[3] - 8 });
+    const hCst = doc.heightOfString(String(c.cstIbsCbs || "-"), { width: colWidths[2] - 8 });
       const hAliq1 = doc.heightOfString(String(aliqIBS), { width: colWidths[4] - 8 });
       const hAliq2 = doc.heightOfString(String(aliqCBS), { width: colWidths[5] - 8 });
 
@@ -261,10 +262,10 @@ if (!ncmList.length) {
       }
 
     x = startX;
-    drawCell(ncm.codigo, x, y, colWidths[0], rowHeight);
+    drawCell(ncm.codigo, x, y, colWidths[0], rowHeight, "center");
     drawCell(String(ncm.descricao || ""), (x += colWidths[0]), y, colWidths[1], rowHeight);
     drawCell(c.cstIbsCbs || "-", (x += colWidths[1]), y, colWidths[2], rowHeight, "center");
-  drawCell(String(formattedClas || ""), (x += colWidths[2]), y, colWidths[3], rowHeight);
+  drawCell(String(formattedClas || ""), (x += colWidths[2]), y, colWidths[3], rowHeight, "center");
     drawCell(aliqIBS, (x += colWidths[3]), y, colWidths[4], rowHeight, "center");
     drawCell(aliqCBS, (x += colWidths[4]), y, colWidths[5], rowHeight, "center");
 
