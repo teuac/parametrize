@@ -360,6 +360,9 @@ const NcmHeader = styled.div`
       text-overflow: ellipsis;
       white-space: nowrap;
       display: inline-block;
+      /* nudge description slightly relative to the code for visual alignment */
+      transform: translateY(1px);
+      transition: transform 0.12s ease;
     }
 
     .code-group {
@@ -367,13 +370,13 @@ const NcmHeader = styled.div`
       display: inline-flex;
       flex-direction: row;
       gap: 0; /* no gap so code and desc are contiguous */
-      align-items: baseline;
+      align-items: center; /* vertically center code + description together */
       justify-content: center;
       width: auto; /* size to content so underline matches text width */
       overflow: hidden;
       justify-self: center;
-  border-bottom: 1px solid ${({ pinned, theme }) => (pinned ? theme.colors.primary : theme.colors.border)};
-  padding-bottom: 0px; /* brought underline even closer to the text */
+      border-bottom: 1px solid ${({ pinned, theme }) => (pinned ? theme.colors.primary : theme.colors.border)};
+      padding-bottom: 0px; /* brought underline even closer to the text */
     }
   }
 
@@ -843,7 +846,7 @@ export default function Dashboard() {
                   <div className="header-left" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, flex: '0 1 auto' }}>
                     <div className="meta-group">
                       <span style={{ fontSize: '0.95rem', opacity: 0.9, textAlign: 'left' }}>
-                        Capítulo: {(() => {
+                        <strong>Capítulo:</strong> {(() => {
                           const digits = String(codigo || '').replace(/\D/g, '');
                           const pref2 = String((digits || '').slice(0,2)).padStart(2, '0');
                           const ch = chaptersMap[pref2];
@@ -891,10 +894,10 @@ export default function Dashboard() {
                         return (
                           <>
                             <span style={{ fontSize: '0.95rem', opacity: 0.95, textAlign: 'left' }}>
-                              Posição: {positionDisplay}
+                              <strong>Posição:</strong> {positionDisplay}
                             </span>
                             <span style={{ fontSize: '0.95rem', opacity: 0.95, textAlign: 'left' }}>
-                              Subposição: {subpositionDisplay}
+                              <strong>Subposição:</strong> {subpositionDisplay}
                             </span>
                           </>
                         );
