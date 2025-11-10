@@ -388,6 +388,14 @@ if (!ncmList.length) {
       }
 
       const headerRow = sheet.getRow(headerRowIndex);
+      // Ensure the exported sheet uses our standardized header names so the
+      // column is always named 'cClassTrib' even when using a user-supplied template.
+      try {
+        for (let i = 0; i < headers.length; i++) {
+          const col = i + 1;
+          try { headerRow.getCell(col).value = headers[i]; } catch (e) { /* ignore */ }
+        }
+      } catch (e) { /* non-fatal */ }
       // build header->colIndex map
       // Build a header -> index map using a normalized key (no accents),
       // making matching tolerant to accents and casing.
