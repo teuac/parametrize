@@ -1,11 +1,12 @@
 // src/styles/GlobalStyle.js
 import { createGlobalStyle } from "styled-components";
-import "@fontsource/montserrat";
-import "@fontsource/montserrat/500.css";
-import "@fontsource/montserrat/600.css";
-import "@fontsource/montserrat/700.css";
+// Use Google Fonts Inter for the whole application. We import it via
+// the CSS @import inside the global style so no additional npm packages
+// are required.
 
 export const GlobalStyle = createGlobalStyle`
+  /* import Inter from Google Fonts */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
   * {
     margin: 0;
     padding: 0;
@@ -15,7 +16,7 @@ export const GlobalStyle = createGlobalStyle`
   html, body {
     background-color: ${({ theme }) => theme.colors.bg};
     color: ${({ theme }) => theme.colors.text};
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-weight: 400;
