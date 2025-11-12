@@ -233,9 +233,9 @@ const SwitchThumb = styled.span`
 `;
 
 export default function Sidebar() {
-  const [toolsOpen, setToolsOpen] = useState(true);
-  const [reformaOpen, setReformaOpen] = useState(true);
-  const [consultaOpen, setConsultaOpen] = useState(true);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [reformaOpen, setReformaOpen] = useState(false);
+  const [consultaOpen, setConsultaOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();

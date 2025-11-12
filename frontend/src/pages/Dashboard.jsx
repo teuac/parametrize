@@ -846,7 +846,7 @@ export default function Dashboard() {
                   <div className="header-left" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, flex: '0 1 auto' }}>
                     <div className="meta-group">
                       <span style={{ fontSize: '0.95rem', opacity: 0.9, textAlign: 'left' }}>
-                        <strong>Capítulo:</strong> {(() => {
+                        <strong>CAPÍTULO:</strong> {(() => {
                           const digits = String(codigo || '').replace(/\D/g, '');
                           const pref2 = String((digits || '').slice(0,2)).padStart(2, '0');
                           const ch = chaptersMap[pref2];
@@ -894,10 +894,10 @@ export default function Dashboard() {
                         return (
                           <>
                             <span style={{ fontSize: '0.95rem', opacity: 0.95, textAlign: 'left' }}>
-                              <strong>Posição:</strong> {positionDisplay}
+                              <strong>POSIÇÃO:</strong> {positionDisplay}
                             </span>
                             <span style={{ fontSize: '0.95rem', opacity: 0.95, textAlign: 'left' }}>
-                              <strong>Subposição:</strong> {subpositionDisplay}
+                              <strong>SUBPOSIÇÃO:</strong> {subpositionDisplay}
                             </span>
                           </>
                         );

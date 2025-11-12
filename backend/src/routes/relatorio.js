@@ -144,7 +144,8 @@ if (!ncmList.length) {
     const nameLine = requestUser && requestUser.name ? String(requestUser.name).trim() : '';
     const cpfLine = requestUser && requestUser.cpfCnpj ? String(requestUser.cpfCnpj).trim() : '';
     if (nameLine || cpfLine) {
-      doc.font('Helvetica').fontSize(10).fillColor('#000');
+      // slightly smaller font so the header stays compact
+      doc.font('Helvetica').fontSize(9).fillColor('#000');
       const line1 = `${nameLine}`.trim();
       const line2 = cpfLine ? `CPF/CNPJ: ${cpfLine}` : '';
       // place the block in the top-right corner
@@ -153,7 +154,7 @@ if (!ncmList.length) {
       const startY = 20; // top area
       // right-align the lines inside the block so they sit flush to the right corner
       doc.text(line1, textBlockX, startY, { width: textBlockWidth, align: 'right' });
-      if (line2) doc.text(line2, textBlockX, startY + 12, { width: textBlockWidth, align: 'right' });
+      if (line2) doc.text(line2, textBlockX, startY + 11, { width: textBlockWidth, align: 'right' });
     }
   } catch (e) {}
 
