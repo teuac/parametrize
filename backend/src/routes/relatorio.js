@@ -145,7 +145,7 @@ if (!ncmList.length) {
     const cpfLine = requestUser && requestUser.cpfCnpj ? String(requestUser.cpfCnpj).trim() : '';
     if (nameLine || cpfLine) {
       // slightly smaller font so the header stays compact
-      doc.font('Helvetica').fontSize(8).fillColor('#000');
+      doc.font('Helvetica').fontSize(6).fillColor('#000');
       const line1 = `${nameLine}`.trim();
       const line2 = cpfLine ? `CPF/CNPJ: ${cpfLine}` : '';
       // place the block in the top-right corner
