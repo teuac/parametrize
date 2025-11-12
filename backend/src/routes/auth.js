@@ -83,3 +83,31 @@ authRouter.post('/reset', async (req, res) => {
     return res.status(400).json({ error: 'Token inválido ou expirado' });
   }
 });
+
+// POST /auth/change -> change password for authenticated user (requires Authorization header)
+authRouter.post('/change', async (req, res) => {
+  try {
+    const auth = req.headers.authorization;
+    if (!auth) return res.status(401).json({ error: 'Não autorizado' });
+    const [, token] = auth.split(' ');
+    if (!token) return res.status(401).json({ error: 'Token ausente' });
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    if (!payload?.id) return res.status(401).json({ error: 'Token inválido' });
+    const user = await prisma.user.findUnique({ where: { id: payload.id } });
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    const { oldPassword, newPassword } = req.body || {};
+    if (!oldPassword || !newPassword) return res.status(400).json({ error: 'Senhas antigas e novas são obrigatórias' });
+
+    const ok = await bcrypt.compare(oldPassword, user.password);
+    if (!ok) return res.status(400).json({ error: 'Senha antiga incorreta' });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: user.id }, data: { password: hashed } });
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Error changing password', err);
+    return res.status(400).json({ error: 'Erro ao alterar senha' });
+  }
+});

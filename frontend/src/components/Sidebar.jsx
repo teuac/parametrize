@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
-import { HelpCircle, Settings, LogOut, ChevronDown, ChevronRight, FileText, Sun, Moon } from "lucide-react";
+import { HelpCircle, Settings, LogOut, ChevronDown, ChevronRight, FileText, Sun, Moon, User } from "lucide-react";
 import HelpModal from './HelpModal';
 import Logo from './Logo'
+import ChangePasswordModal from './ChangePasswordModal';
 import { useAppTheme } from '../contexts/ThemeContext';
 
 const SidebarContainer = styled.div`
@@ -258,6 +259,8 @@ export default function Sidebar() {
   };
 
   const { themeName, setThemeName } = useAppTheme();
+  const [changePassOpen, setChangePassOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
 
   const toggleTheme = () => {
     try {
@@ -331,6 +334,22 @@ export default function Sidebar() {
                 </SubNav>
               </>
             )}
+            {/* Usuário: alterar senha (expansível) */}
+            <Group>
+              <GroupTitle onClick={() => setUserOpen(v => !v)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <User /> Usuário
+                </div>
+                <div>{userOpen ? <ChevronDown /> : <ChevronRight />}</div>
+              </GroupTitle>
+              {userOpen && (
+                <SubNav>
+                  <SubButton onClick={() => setChangePassOpen(true)}>
+                    Alterar senha
+                  </SubButton>
+                </SubNav>
+              )}
+            </Group>
           </Group>
           {/* logout button removed from main nav and placed in footer */}
           {user?.role === 'admin' && (
@@ -341,7 +360,8 @@ export default function Sidebar() {
               <Settings /> Admin
             </NavButton>
           )}
-        </Nav>
+  </Nav>
+  <ChangePasswordModal open={changePassOpen} onClose={() => setChangePassOpen(false)} />
       </div>
 
       <Footer>
