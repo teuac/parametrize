@@ -275,11 +275,31 @@ if (!ncmList.length) {
   }
 
   // === Rodapé ===
-  doc
-    .moveDown(2)
-    .fontSize(8)
-    .fillColor("#666")
-    .text(`Gerado em: ${new Date().toLocaleString()}`, { align: "right" });
+  // Place the footer after the table regardless of table height. If there is
+  // not enough space on the current page, start a new page so the footer does
+  // not overlap the table.
+  try {
+    const footerText = `Gerado em: ${new Date().toLocaleString()}`;
+    const footerPadding = 12; // space after the table
+    let footerY = y + footerPadding;
+    // Use the same bottom safety margin used for row wrapping earlier
+    const bottomLimit = doc.page.height - 80;
+    if (footerY > bottomLimit) {
+      doc.addPage();
+      addWatermark();
+      // place footer near the top area of the new page (leave some top margin)
+      footerY = 60;
+    }
+    doc.fontSize(8).fillColor("#666");
+    // align right across the available content area
+    const footerWidth = doc.page.width - startX - 40;
+    doc.text(footerText, startX, footerY, { width: footerWidth, align: 'right' });
+  } catch (e) {
+    // fallback: try simple text at current position
+    try {
+      doc.fontSize(8).fillColor("#666").text(`Gerado em: ${new Date().toLocaleString()}`, { align: 'right' });
+    } catch (err) {}
+  }
 
   // Finaliza o PDF
   doc.end();
