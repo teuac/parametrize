@@ -69,13 +69,12 @@ const GroupTitle = styled.button`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   background: transparent;
   color: ${({ theme }) => theme.colors.text};
   border: none;
   border-radius: 8px;
-  padding: 10px 14px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   font-size: 0.82rem;
   cursor: pointer;
   transition: 0.2s;
@@ -96,8 +95,9 @@ const GroupTitle = styled.button`
   overflow: hidden;
   text-overflow: ellipsis;
   /* ensure consistent spacing between group titles so they align */
+  /* spacing handled by Group gap; avoid extra top margin to keep spacing uniform */
   &:not(:first-child) {
-    margin-top: 8px;
+    margin-top: 0;
   }
 `;
 
@@ -111,14 +111,13 @@ const SubNav = styled.div`
 const NavButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   justify-content: flex-start;
   width: 100%;
   background: ${({ active, theme }) => (active ? theme.colors.hover : 'transparent')};
   color: ${({ active, theme }) => (active ? theme.colors.accent : theme.colors.text)};
   border: none;
   border-radius: 8px;
-  padding: 10px 14px;
   padding: 8px 12px;
   font-size: 0.85rem;
   cursor: pointer;
@@ -180,7 +179,7 @@ const Footer = styled.div`
 const HelpButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   background: transparent;
   color: #888;
   border: none;
@@ -276,7 +275,7 @@ export default function Sidebar() {
         <Nav>
           <Group>
             <GroupTitle onClick={() => setReformaOpen(v => !v)}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <FileText /> Reforma Tributária
               </div>
               <div>{reformaOpen ? <ChevronDown /> : <ChevronRight />}</div>
@@ -313,7 +312,7 @@ export default function Sidebar() {
             )}
 
             <GroupTitle onClick={() => setToolsOpen(v => !v)}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <FileText /> Ferramentas
               </div>
               <div>{toolsOpen ? <ChevronDown /> : <ChevronRight />}</div>
@@ -337,7 +336,7 @@ export default function Sidebar() {
             {/* Usuário: alterar senha (expansível) */}
             <Group>
               <GroupTitle onClick={() => setUserOpen(v => !v)}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <User /> Usuário
                 </div>
                 <div>{userOpen ? <ChevronDown /> : <ChevronRight />}</div>
