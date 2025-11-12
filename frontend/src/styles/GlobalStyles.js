@@ -5,8 +5,7 @@ import { createGlobalStyle } from "styled-components";
 // are required.
 
 export const GlobalStyle = createGlobalStyle`
-  /* import Inter from Google Fonts */
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  /* Inter is loaded via <link> in index.html to avoid runtime @import issues */
   * {
     margin: 0;
     padding: 0;
