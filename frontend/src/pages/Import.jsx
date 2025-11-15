@@ -21,12 +21,16 @@ export default function Import() {
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
   const [duplicateSamples, setDuplicateSamples] = useState([]);
   const [pendingBase64, setPendingBase64] = useState(null);
+  const [pendingUniqueCount, setPendingUniqueCount] = useState(null);
+  const [pendingRemaining, setPendingRemaining] = useState(null);
 
-  const doImport = async (base64) => {
+  const doImport = async (base64, maxProcess = null) => {
     try {
       setLoading(true);
       // send to backend using axios instance (handles baseURL and auth)
-      const resp = await api.post('/util/import-ncm', { filename: selectedFile.name, data: base64 }, { responseType: 'blob' });
+      const body = { filename: selectedFile.name, data: base64 };
+      if (maxProcess) body.maxProcess = Number(maxProcess);
+      const resp = await api.post('/util/import-ncm', body, { responseType: 'blob' });
 
       const blob = resp.data;
       // trigger download of returned workbook
@@ -46,6 +50,8 @@ export default function Import() {
       // clear the hidden file input so user can select the same file again without reloading
       const input = document.getElementById('file-input');
       if (input) input.value = '';
+      // notify other parts of the app (Dashboard) to refresh quota
+      try { window.dispatchEvent(new CustomEvent('quota-changed')); } catch (e) {}
     } catch (err) {
       console.error('Erro ao importar planilha:', err);
       setError(err.message || String(err));
@@ -72,10 +78,26 @@ export default function Import() {
       try {
         const checkResp = await api.post('/util/import-ncm/check', { filename: selectedFile.name, data: base64 });
         const duplicates = checkResp.data?.duplicates || [];
-        if (duplicates.length) {
-          // open modal with samples instead of a confirm()
+        const uniqueCount = Number(checkResp.data?.uniqueCount || 0);
+        // fetch current quota
+        let remaining = null;
+        try {
+          const q = await api.get('/util/quota');
+          const used = q.data?.used || 0;
+          const limit = q.data?.limit || 0;
+          remaining = Math.max(0, limit - used);
+        } catch (e) {
+          // if quota fetch fails, allow processing but do not limit
+          remaining = null;
+        }
+
+        // If there are duplicates OR uniqueCount exceeds remaining quota (when known), show modal
+        const needModal = (duplicates.length > 0) || (remaining !== null && uniqueCount > remaining);
+        if (needModal) {
           setDuplicateSamples(duplicates.slice(0, 20));
           setPendingBase64(base64);
+          setPendingUniqueCount(uniqueCount);
+          setPendingRemaining(remaining);
           setDuplicateModalOpen(true);
           setLoading(false);
           return;
@@ -104,7 +126,12 @@ export default function Import() {
   const handleModalContinue = async () => {
     setDuplicateModalOpen(false);
     if (pendingBase64) {
-      await doImport(pendingBase64);
+      // if we know remaining and pendingUniqueCount exceeds it, pass maxProcess so backend limits processing
+      if (pendingRemaining !== null && pendingUniqueCount > pendingRemaining) {
+        await doImport(pendingBase64, pendingRemaining);
+      } else {
+        await doImport(pendingBase64);
+      }
     }
   };
 
@@ -209,7 +236,13 @@ export default function Import() {
               <div style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
                 <div style={{ width: 560, maxWidth: '92%', borderRadius: 10, background: theme.colors.surface, color: theme.colors.text, padding: 18, boxShadow: '0 12px 40px rgba(0,0,0,0.08)', border: '1px solid rgba(255,82,82,0.12)' }} role="dialog" aria-modal="true">
                   <h3 style={{ marginTop: 0, marginBottom: 8, background: '#ff5252', color: '#000', padding: '8px 12px', borderRadius: 6, display: 'block', width: '100%', textAlign: 'center' }}>Códigos duplicados encontrados</h3>
-                  <p style={{ marginTop: 0, marginBottom: 8 }}>A planilha possui códigos repetidos. Esses códigos duplicados serão ignorados durante o processamento.</p>
+                  <div style={{ marginTop: 0, marginBottom: 8 }}>
+                    {pendingUniqueCount !== null && pendingRemaining !== null && pendingUniqueCount > pendingRemaining ? (
+                      <p style={{ margin: 0 }}>A planilha possui <strong>{pendingUniqueCount}</strong> códigos únicos, e você tem <strong>{pendingRemaining}</strong> consultas restantes hoje. Serão processados apenas <strong>{pendingRemaining}</strong> códigos (os demais serão ignorados). Deseja continuar?</p>
+                    ) : (
+                      <p style={{ margin: 0 }}>A planilha possui códigos repetidos. Esses códigos duplicados serão ignorados durante o processamento.</p>
+                    )}
+                  </div>
                   {duplicateSamples && duplicateSamples.length > 0 && (
                     <div style={{ marginTop: 6, maxHeight: 140, overflow: 'auto', background: theme.name === 'light' ? '#f6f6f6' : '#111', padding: 10, borderRadius: 6, border: '1px solid rgba(255,82,82,0.06)', color: theme.colors.text }}>
                       {duplicateSamples.join(', ')}

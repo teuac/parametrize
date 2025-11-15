@@ -573,6 +573,20 @@ export default function Dashboard() {
     return () => { mounted = false; };
   }, []);
 
+  // Listen for external quota refresh requests (e.g., after import consumed searches)
+  useEffect(() => {
+    const handler = async () => {
+      try {
+        const { data } = await api.get('/util/quota');
+        setQuota(data);
+      } catch (err) {
+        // ignore
+      }
+    };
+    window.addEventListener('quota-changed', handler);
+    return () => window.removeEventListener('quota-changed', handler);
+  }, []);
+
   async function fetchSuggestions(value) {
     if (!value.trim()) return setSuggestions([]);
     try {

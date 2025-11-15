@@ -237,6 +237,7 @@ export default function Sidebar() {
   const [reformaOpen, setReformaOpen] = useState(false);
   const [consultaOpen, setConsultaOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [manuaisOpen, setManuaisOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   // read user from localStorage to determine admin visibility
@@ -334,6 +335,23 @@ export default function Sidebar() {
                 </SubNav>
               </>
             )}
+            {/* Manuais: Consulta em lote (expansível) */}
+            <Group>
+              <GroupTitle onClick={() => setManuaisOpen(v => !v)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <FileText /> Manuais
+                </div>
+                <div>{manuaisOpen ? <ChevronDown /> : <ChevronRight />}</div>
+              </GroupTitle>
+              {manuaisOpen && (
+                <SubNav>
+                  <SubButton onClick={() => navigate('/consulta-lote')} active={location.pathname.startsWith('/consulta-lote') || location.pathname === '/import' || location.pathname === '/download-modelo'}>
+                    Consulta em Lote
+                  </SubButton>
+                </SubNav>
+              )}
+            </Group>
+
             {/* Usuário: alterar senha (expansível) */}
             <Group>
               <GroupTitle onClick={() => setUserOpen(v => !v)}>

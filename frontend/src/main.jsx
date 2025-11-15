@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import Admin from './pages/Admin.jsx'
 import Import from './pages/Import.jsx'
 import DownloadModelo from './pages/DownloadModelo.jsx'
+import ImportManual from './pages/manuals/ImportManual.jsx'
 import TabelaNcm from './pages/TabelaNcm.jsx'
 import TabelaCfops from './pages/TabelaCfops.jsx'
 import TabelaNbs from './pages/TabelaNbs.jsx'
@@ -30,6 +31,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
         <Route path="/import" element={<ProtectedRoute><Import /></ProtectedRoute>} />
+    <Route path="/consulta-lote" element={<ProtectedRoute><ImportManual /></ProtectedRoute>} />
   <Route path="/download-modelo" element={<ProtectedRoute><DownloadModelo /></ProtectedRoute>} />
         <Route path="/tabela-ncm" element={<ProtectedRoute><TabelaNcm /></ProtectedRoute>} />
         <Route path="/tabela-cfops" element={<ProtectedRoute><TabelaCfops /></ProtectedRoute>} />

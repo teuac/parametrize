@@ -363,8 +363,10 @@ utilRouter.post('/import-ncm', async (req, res) => {
 
     const dataRows = raw.slice(headerRowIndex + 1);
 
-    // Build a set of unique normalized NCM codes from the sheet (to avoid repeated DB queries)
-    const uniqueCodes = new Set();
+  // Build a set of unique normalized NCM codes from the sheet (to avoid repeated DB queries)
+  // Respect optional maxProcess to limit how many unique codes will be looked up
+  const maxProcess = Number(req.body?.maxProcess) || null;
+  const uniqueCodes = new Set();
     const parsedRows = dataRows.map((rowArr) => Array.isArray(rowArr) ? rowArr.slice() : []);
     // Keep only rows that have a value in the NCM column (skip empty rows)
     const filteredRows = parsedRows.filter((row) => {
@@ -373,6 +375,7 @@ utilRouter.post('/import-ncm', async (req, res) => {
       return ncmRaw !== '';
     });
     filteredRows.forEach((row) => {
+      if (maxProcess && uniqueCodes.size >= maxProcess) return; // already reached the requested limit
       const cellVal = row[ncmColIndex];
       const ncmRaw = cellVal === null || cellVal === undefined ? '' : String(cellVal).trim();
       const norm = ncmRaw.replace(/\./g, '').replace(/\s+/g, '');
@@ -489,11 +492,31 @@ utilRouter.post('/import-ncm', async (req, res) => {
       if (!norm) {
         // no norm — still include the row (will be processed as no-match below)
       } else {
+        // If maxProcess was set and this norm wasn't included in uniqueCodes (we limited earlier), skip it
+        if (maxProcess && !uniqueCodes.has(norm)) {
+          continue;
+        }
         if (processedNorms.has(norm)) {
           // skip duplicate input row entirely
           continue;
         }
         processedNorms.add(norm);
+
+        // Log this processed search so quota reflects import activity (non-blocking)
+        try {
+          if (req.user && req.user.role !== 'admin') {
+            (async () => {
+              try {
+                await prisma.searchLog.create({ data: { userId: Number(req.user.id), query: norm } });
+              } catch (e) {
+                console.error('Erro ao gravar SearchLog durante import:', e && e.stack ? e.stack : e);
+              }
+            })();
+          }
+        } catch (e) {
+          // swallow any unexpected errors in logging
+          console.error('Erro inesperado ao tentar registrar SearchLog durante import:', e && e.stack ? e.stack : e);
+        }
       }
 
       // build base row values aligned with original headers
@@ -748,7 +771,8 @@ utilRouter.post('/import-ncm/check', async (req, res) => {
       }
     }
 
-    return res.json({ duplicates: Array.from(duplicates) });
+  const uniqueCount = Object.keys(seen).length;
+  return res.json({ duplicates: Array.from(duplicates), uniqueCount });
   } catch (err) {
     console.error('Erro no import-ncm/check:', err && err.stack ? err.stack : err);
     return res.status(500).json({ error: 'Erro ao verificar planilha.' });
