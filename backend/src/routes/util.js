@@ -478,11 +478,23 @@ utilRouter.post('/import-ncm', async (req, res) => {
       }
     }
 
-    // Build output rows: for each input row that had an NCM, if there are multiple matches, emit multiple rows (one per match)
+    // Build output rows: for each unique input NCM only (ignore duplicate input rows with same normalized NCM)
+    const processedNorms = new Set();
     for (const row of filteredRows) {
       const cellVal = row[ncmColIndex];
       const ncmRaw = cellVal === null || cellVal === undefined ? '' : String(cellVal).trim();
       const norm = ncmRaw.replace(/\./g, '').replace(/\s+/g, '');
+
+      // if we've already processed this normalized code, skip (ignore duplicates)
+      if (!norm) {
+        // no norm — still include the row (will be processed as no-match below)
+      } else {
+        if (processedNorms.has(norm)) {
+          // skip duplicate input row entirely
+          continue;
+        }
+        processedNorms.add(norm);
+      }
 
       // build base row values aligned with original headers
       const baseRow = headers.map((_, i) => (row[i] === undefined ? null : row[i]));
@@ -681,6 +693,65 @@ utilRouter.post('/import-ncm', async (req, res) => {
   } catch (err) {
     console.error('Erro no import-ncm:', err && err.stack ? err.stack : err);
     return res.status(500).json({ error: 'Erro interno ao processar importação.' });
+  }
+});
+
+// POST /util/import-ncm/check
+// Checks the uploaded workbook for duplicate NCM codes (based on normalized NCM column values)
+utilRouter.post('/import-ncm/check', async (req, res) => {
+  try {
+    const { data } = req.body || {};
+    if (!data) return res.status(400).json({ error: 'Nenhum arquivo enviado (campo data).' });
+    const buffer = Buffer.from(data, 'base64');
+    const inputWorkbook = xlsx.read(buffer, { type: 'buffer', cellDates: true });
+    const sheetName = inputWorkbook.SheetNames && inputWorkbook.SheetNames[0];
+    const sheet = sheetName ? inputWorkbook.Sheets[sheetName] : null;
+    if (!sheet) return res.status(400).json({ error: 'Planilha inválida.' });
+
+    const raw = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: null });
+    const normalize = (s) => String(s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+
+    // try to find header row index similar to import logic
+    let headerRowIndex = -1;
+    if (Array.isArray(raw[8]) && raw[8].some(cell => typeof cell === 'string' && normalize(cell).includes('ncm'))) {
+      headerRowIndex = 8; // zero-based index for row 9
+    } else {
+      headerRowIndex = raw.findIndex((row) => Array.isArray(row) && row.some(cell => typeof cell === 'string' && normalize(cell).includes('ncm')));
+    }
+    if (headerRowIndex === -1) {
+      headerRowIndex = raw.findIndex((row) => Array.isArray(row) && row.some(cell => typeof cell === 'string' && (normalize(cell).includes('codigo') || normalize(cell).includes('cod'))));
+    }
+    if (headerRowIndex === -1) {
+      headerRowIndex = raw.findIndex((row) => Array.isArray(row) && row.some(cell => cell !== null && cell !== ''));
+    }
+    if (headerRowIndex === -1) return res.json({ duplicates: [] });
+
+    const headers = raw[headerRowIndex].map(h => h === undefined || h === null ? '' : String(h));
+    let ncmColIndex = headers.findIndex(h => normalize(h).replace(/\s+/g,'') === 'ncm');
+    if (ncmColIndex === -1) ncmColIndex = headers.findIndex(h => normalize(h).includes('ncm'));
+    if (ncmColIndex === -1) ncmColIndex = headers.findIndex(h => normalize(h).includes('codigo') || normalize(h).includes('cod'));
+    if (ncmColIndex === -1) return res.json({ duplicates: [] });
+
+    const dataRows = raw.slice(headerRowIndex + 1).map(r => Array.isArray(r) ? r : []);
+    const seen = Object.create(null);
+    const duplicates = new Set();
+    for (const row of dataRows) {
+      const cellVal = row[ncmColIndex];
+      const ncmRaw = cellVal === null || cellVal === undefined ? '' : String(cellVal).trim();
+      if (!ncmRaw) continue;
+      const norm = ncmRaw.replace(/\./g, '').replace(/\s+/g, '');
+      if (!norm) continue;
+      if (seen[norm]) {
+        duplicates.add(ncmRaw);
+      } else {
+        seen[norm] = true;
+      }
+    }
+
+    return res.json({ duplicates: Array.from(duplicates) });
+  } catch (err) {
+    console.error('Erro no import-ncm/check:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ error: 'Erro ao verificar planilha.' });
   }
 });
 

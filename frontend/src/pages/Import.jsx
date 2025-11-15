@@ -32,6 +32,23 @@ export default function Import() {
         reader.readAsDataURL(selectedFile);
       });
 
+      // Before processing, check for duplicate NCM codes in the uploaded sheet
+      try {
+        const checkResp = await api.post('/util/import-ncm/check', { filename: selectedFile.name, data: base64 });
+        const duplicates = checkResp.data?.duplicates || [];
+        if (duplicates.length) {
+          const sample = duplicates.slice(0, 20).join(', ');
+          const proceed = window.confirm(`A planilha possui códigos repetidos (${duplicates.length}). Exemplos: ${sample}.\n\nEsses códigos duplicados serão ignorados durante o processamento. Deseja continuar?`);
+          if (!proceed) {
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        // if check fails, continue to attempt processing but warn in console
+        console.warn('Verificação de duplicatas falhou, prosseguindo com processamento', err);
+      }
+
       // send to backend using axios instance (handles baseURL and auth)
       const resp = await api.post('/util/import-ncm', { filename: selectedFile.name, data: base64 }, { responseType: 'blob' });
 
