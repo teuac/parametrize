@@ -12,7 +12,7 @@ const SidebarContainer = styled.div`
   left: 0;
   top: 0;
   height: 100vh;
-  width: 220px;
+  width: 222px;
   background: ${({ theme }) => theme.colors.bg};
   color: ${({ theme }) => theme.colors.text};
   display: flex;
@@ -260,6 +260,7 @@ export default function Sidebar() {
   const { themeName, setThemeName } = useAppTheme();
   const [changePassOpen, setChangePassOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
+  
 
   const toggleTheme = () => {
     try {

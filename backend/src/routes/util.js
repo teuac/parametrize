@@ -239,6 +239,23 @@ utilRouter.get('/tabela-ncm', async (req, res) => {
   }
 });
 
+// GET /util/quota -> return daily searches used and limit for the authenticated user
+utilRouter.get('/quota', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+    const userRecord = await prisma.user.findUnique({ where: { id: userId }, select: { dailySearchLimit: true } });
+    const limit = userRecord?.dailySearchLimit ?? 100;
+    const startOfDay = new Date();
+    startOfDay.setHours(0,0,0,0);
+    const used = await prisma.searchLog.count({ where: { userId, createdAt: { gte: startOfDay } } });
+    return res.json({ used, limit });
+  } catch (err) {
+    console.error('Erro ao obter cota do usuário', err);
+    return res.status(500).json({ error: 'Erro ao obter cota' });
+  }
+});
+
 // Get chapter by its two-digit code (chapter_code)
 utilRouter.get('/chapter/:code', async (req, res) => {
   try {
@@ -597,8 +614,8 @@ utilRouter.post('/import-ncm', async (req, res) => {
       console.error('Não foi possível buscar dados do usuário para inserir no arquivo:', e && e.message ? e.message : e);
     }
 
-  // leave space below the logo/title and write header later — shift headers/data down by 3 more rows
-  const headerRowIndexExcel = 7;
+  // leave space below the logo/title and write header later — place headers on row 9 (1-based)
+  const headerRowIndexExcel = 9;
   sheetExcel.getRow(headerRowIndexExcel).values = sanitizedHeaders;
     // style header row
     const headerRow = sheetExcel.getRow(headerRowIndexExcel);

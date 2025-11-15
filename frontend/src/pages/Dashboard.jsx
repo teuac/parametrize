@@ -3,6 +3,7 @@ import styled, { createGlobalStyle } from "styled-components";
 import { api } from "../api/http";
 import Sidebar from "../components/Sidebar";
 import { Search, BookOpen, File, FileSpreadsheet, FileText, Pin, MapPin, AlertTriangle } from "lucide-react";
+ 
 
 /* ======= STYLES ======= */
 const Layout = styled.div`
@@ -108,6 +109,39 @@ const SearchWrapper = styled.div`
   margin-bottom: 40px;
 `;
 
+const QuotaBox = styled.div`
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(168,137,42,0.14);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 140px;
+  margin-left: -64px;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+    width: auto;
+  }
+`;
+
+const QuotaTitle = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(168,137,42,0.95);
+  margin-bottom: 6px;
+`;
+
+const QuotaNumber = styled.div`
+  font-size: 16px;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.text};
+  transition: transform 220ms ease, opacity 180ms ease;
+  transform: scale(${(p) => (p.pulse ? 1.08 : 1)});
+`;
+
 const InfoMessage = styled.p`
   color: ${({ theme }) => theme.colors.text};
   opacity: 0.85;
@@ -140,6 +174,8 @@ const SearchBar = styled.div`
   align-items: center;
   gap: 10px;
   margin: 0 auto; /* keep the search bar exactly centered */
+  transform: translateX(-64px); /* bring the search bar closer to the QuotaBox */
+  transition: transform 180ms ease;
 
   input {
     flex: 1;
@@ -183,6 +219,7 @@ const SearchBar = styled.div`
   @media (max-width: 480px) {
     max-width: 100%;
     padding: 0 12px;
+    transform: none;
   }
 `;
 
@@ -495,6 +532,8 @@ const LawButton = styled.a`
 /* ======= COMPONENT ======= */
 export default function Dashboard() {
   const [query, setQuery] = useState("");
+  const [quota, setQuota] = useState(null);
+  const [pulse, setPulse] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [noResults, setNoResults] = useState(false);
   const [items, setItems] = useState([]);
@@ -520,6 +559,20 @@ export default function Dashboard() {
     return () => document.documentElement.classList.remove("app-full-bleed");
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { data } = await api.get('/util/quota');
+        if (!mounted) return;
+        setQuota(data);
+      } catch (err) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   async function fetchSuggestions(value) {
     if (!value.trim()) return setSuggestions([]);
     try {
@@ -539,6 +592,14 @@ export default function Dashboard() {
       const { data } = await api.get("/ncm", { params: { q: code } });
   setQuotaMessage('');
   setQuotaModalOpen(false);
+      // decrement remaining locally (increment used) with animation
+      setQuota((prev) => {
+        if (!prev) return prev;
+        const used = Math.min(prev.limit || 0, (prev.used || 0) + 1);
+        return { ...prev, used };
+      });
+      setPulse(true);
+      setTimeout(() => setPulse(false), 300);
       const pinnedItems = items.filter((i) => pinnedCodes.includes(i.codigo));
       // Show newly searched items first, then keep pinned items afterwards
       const combined = [...data, ...pinnedItems];
@@ -773,6 +834,27 @@ export default function Dashboard() {
             </InfoMessage>
 
             <SearchContainer>
+              {/* Quota box placed to the left of the search bar */}
+              <QuotaBox>
+                {quota ? (
+                  (() => {
+                    const used = quota.used || 0;
+                    const limit = quota.limit || 0;
+                    const remaining = Math.max(0, limit - used);
+                    return (
+                      <>
+                        <QuotaTitle>consultas restantes:</QuotaTitle>
+                        <QuotaNumber pulse={pulse}>{remaining}</QuotaNumber>
+                      </>
+                    );
+                  })()
+                ) : (
+                  <>
+                    <QuotaTitle>consultas restantes:</QuotaTitle>
+                    <QuotaNumber pulse={false}>-</QuotaNumber>
+                  </>
+                )}
+              </QuotaBox>
                 {/* quotaMessage is now shown in a modal when needed */}
               <SearchBar>
                 <input
@@ -943,7 +1025,7 @@ export default function Dashboard() {
                   const pRedIBS = parseFloat(classTrib.pRedIBS) || 0;
                   const pRedCBS = parseFloat(classTrib.pRedCBS) || 0;
                   const cst = classTrib.cstIbsCbs?.toString();
-                  const cstZerados = ["400", "410", "510", "550", "620"];
+                  const cstZerados = ["400", "410", "510", "515","550", "620"];
                   const isIsento = cstZerados.includes(cst);
 
                   const aliquotaIBS = isIsento ? 0 : 0.1 * (1 - pRedIBS / 100);
@@ -1003,6 +1085,7 @@ export default function Dashboard() {
                                   "400": "ISENÇÃO",
                                   "410": "IMUNIDADE / NÃO INCIDÊNCIA",
                                   "510": "DIFERIMENTO",
+                                  "515": "DIFERIMENTO",
                                   "550": "SUSPENSÃO",
                                   "620": "TRIBUTAÇÃO MONOFÁSICA",
                                 }[cst];

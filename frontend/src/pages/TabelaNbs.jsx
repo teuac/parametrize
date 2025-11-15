@@ -84,7 +84,32 @@ export default function TabelaNbs() {
       .then(res => {
         if (!mounted) return;
         const data = res.data?.rows || [];
-        setRows(data);
+        // remove duplicates based on the 4 relevant fields: item_lc_116, descricao_item, nbs, descricao_nbs
+        const normalize = (s) => {
+          const str = String(s || '');
+          return str
+            .normalize('NFD')
+            .replace(/\p{Diacritic}/gu, '')
+            .replace(/[.,;:]/g, '')
+            .replace(/\s+/g, ' ')
+            .toLowerCase()
+            .trim();
+        };
+
+        const seen = new Set();
+        const deduped = [];
+        for (const r of data) {
+          const a = normalize(r.item_lc_116);
+          const b = normalize(r.descricao_item || r['descricao item'] || r['descricao do item'] || '');
+          const c = normalize(r.nbs);
+          const d = normalize(r.descricao_nbs || r['descricao nbs'] || r['descricao do nbs'] || '');
+          const key = `${a}||${b}||${c}||${d}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          deduped.push(r);
+        }
+
+        setRows(deduped);
         setLoading(false);
       })
       .catch(err => {
