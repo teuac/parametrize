@@ -207,16 +207,16 @@ export default function Import() {
             </div>
             {duplicateModalOpen && (
               <div style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-                <div style={{ width: 560, maxWidth: '92%', borderRadius: 10, background: '#000', color: '#fff', padding: 18, boxShadow: '0 12px 40px rgba(0,0,0,0.8)', border: '1px solid rgba(255,0,0,0.12)' }} role="dialog" aria-modal="true">
+                <div style={{ width: 560, maxWidth: '92%', borderRadius: 10, background: theme.colors.surface, color: theme.colors.text, padding: 18, boxShadow: '0 12px 40px rgba(0,0,0,0.08)', border: '1px solid rgba(255,82,82,0.12)' }} role="dialog" aria-modal="true">
                   <h3 style={{ marginTop: 0, marginBottom: 8, background: '#ff5252', color: '#000', padding: '8px 12px', borderRadius: 6, display: 'block', width: '100%', textAlign: 'center' }}>Códigos duplicados encontrados</h3>
                   <p style={{ marginTop: 0, marginBottom: 8 }}>A planilha possui códigos repetidos. Esses códigos duplicados serão ignorados durante o processamento.</p>
                   {duplicateSamples && duplicateSamples.length > 0 && (
-                    <div style={{ marginTop: 6, maxHeight: 140, overflow: 'auto', background: '#111', padding: 10, borderRadius: 6, border: '1px solid rgba(255,82,82,0.06)', color: '#fff' }}>
+                    <div style={{ marginTop: 6, maxHeight: 140, overflow: 'auto', background: theme.name === 'light' ? '#f6f6f6' : '#111', padding: 10, borderRadius: 6, border: '1px solid rgba(255,82,82,0.06)', color: theme.colors.text }}>
                       {duplicateSamples.join(', ')}
                     </div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14 }}>
-                    <button onClick={handleModalCancel} style={{ padding: '8px 12px', borderRadius: 6, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', cursor: 'pointer' }}>Cancelar</button>
+                    <button onClick={handleModalCancel} style={{ padding: '8px 12px', borderRadius: 6, background: 'transparent', border: theme.name === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.08)', color: theme.colors.text, cursor: 'pointer' }}>Cancelar</button>
                     <button onClick={handleModalContinue} style={{ padding: '8px 12px', borderRadius: 6, background: '#c62828', border: 'none', color: '#fff', cursor: 'pointer' }}>Continuar</button>
                   </div>
                 </div>
