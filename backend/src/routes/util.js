@@ -351,7 +351,8 @@ utilRouter.post('/import-ncm', async (req, res) => {
   // place codigoClassTrib after descricaoCstIbsCbs as requested
   // also add Aliquota IBS and Aliquota CBS computed with same logic as Dashboard cards
   // include NCM description from DB as the first extra column to return full NCM rows
-  const extraCols = ['Descrição NCM','CST','Descrição CST','cClassTrib','Descrição ClassTrib','Red IBS','Red CBS','Aliquota IBS','Aliquota CBS','Base Legal - LC 214/25'];
+  // Add Capítulo after the NCM description (Posição and Subposição removed)
+  const extraCols = ['Descrição NCM','Capítulo','CST','Descrição CST','cClassTrib','Descrição ClassTrib','Red IBS','Red CBS','Aliquota IBS','Aliquota CBS','Base Legal - LC 214/25'];
   const insertPos = ncmColIndex + 1; // insert after the NCM column
   const outHeaders = headers.slice(0, insertPos).concat(extraCols).concat(headers.slice(insertPos));
 
@@ -483,6 +484,22 @@ utilRouter.post('/import-ncm', async (req, res) => {
 
     // Build output rows: for each unique input NCM only (ignore duplicate input rows with same normalized NCM)
     const processedNorms = new Set();
+
+    // cache for chapter descriptions to avoid repeated DB calls
+    const chapterCache = Object.create(null);
+
+    const fetchChapterDesc = async (code2) => {
+      if (!code2) return null;
+      if (chapterCache[code2] !== undefined) return chapterCache[code2];
+      try {
+        const rec = await prisma.chapter.findUnique({ where: { chapter_code: code2 }, select: { description: true } });
+        chapterCache[code2] = rec && rec.description ? String(rec.description) : null;
+        return chapterCache[code2];
+      } catch (e) {
+        chapterCache[code2] = null;
+        return null;
+      }
+    };
     for (const row of filteredRows) {
       const cellVal = row[ncmColIndex];
       const ncmRaw = cellVal === null || cellVal === undefined ? '' : String(cellVal).trim();
@@ -543,9 +560,16 @@ utilRouter.post('/import-ncm', async (req, res) => {
           const normPRedCBS = rawPRedCBS.replace(/[%"\s]/g, '').replace(',', '.');
           const pRedCBSDisplay = normPRedCBS === '' ? '' : (isNaN(Number(normPRedCBS)) ? normPRedCBS + '%' : `${parseFloat(normPRedCBS)}%`);
 
+          // Determine chapter using NCM source (prefer DB NCM code)
+          const sourceCode = (f.ncmCodigo || '').toString();
+          const digitsOnlySrc = sourceCode.replace(/\D/g, '');
+          const pref2 = String((digitsOnlySrc || '').slice(0,2)).padStart(2, '0');
+          const chDesc = await fetchChapterDesc(pref2);
+
           const extraVals = [
             // include NCM description from DB as first extra column
             f.ncmDescricao || '',
+            chDesc || '',
             f.cstIbsCbs || '',
             f.descricaoCstIbsCbs || '',
             padClass(f.codigoClassTrib || ''),
@@ -561,8 +585,17 @@ utilRouter.post('/import-ncm', async (req, res) => {
           outRows.push(outRow);
         }
       } else {
-        // no matches — insert empty extra columns after NCM column
+        // no matches — attempt to infer capítulo from the input NCM code
+        const sourceCode = ncmRaw || '';
+        const digitsOnlySrc = sourceCode.replace(/\D/g, '');
+        const pref2 = String((digitsOnlySrc || '').slice(0,2)).padStart(2, '0');
+        const chDesc = await fetchChapterDesc(pref2);
+
         const emptyExtras = Array(extraCols.length).fill('');
+        // extraCols = ['Descrição NCM','Capítulo', ...]
+        emptyExtras[0] = '';
+        emptyExtras[1] = chDesc || '';
+
         const outRow = baseRow.slice(0, insertPos).concat(emptyExtras).concat(baseRow.slice(insertPos));
         outRows.push(outRow);
       }
