@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useTheme } from 'styled-components';
 import Sidebar from '../components/Sidebar';
 import { api } from '../api/http';
@@ -9,6 +9,7 @@ export default function Import() {
   const [fileName, setFileName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -35,18 +36,26 @@ export default function Import() {
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = (dragCounter.current || 0) + 1;
     if (!isDragging) setIsDragging(true);
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (isDragging) setIsDragging(false);
+    dragCounter.current = Math.max(0, (dragCounter.current || 0) - 1);
+    if (dragCounter.current === 0) setIsDragging(false);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    dragCounter.current = 0;
     setIsDragging(false);
     const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
     if (file) onDropFile(file);
