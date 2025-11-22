@@ -62,7 +62,9 @@ const Td = styled.td`
 `;
 
 const Highlight = styled.tr`
-  background: rgba(168,137,42,0.08);
+  background: rgba(168,137,42,0.28);
+  box-shadow: inset 6px 0 0 0 rgba(168,137,42,0.36);
+  transition: background 180ms ease, box-shadow 180ms ease;
 `;
 
 export default function TabelaNcm() {
