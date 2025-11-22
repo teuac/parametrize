@@ -58,6 +58,9 @@ const Th = styled.th`
 const Td = styled.td`
   padding: 8px 16px; /* Standardized horizontal padding */
   border-bottom: 1px solid #f0f0f0;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 `;
 
 const Highlight = styled.tr`
@@ -196,6 +199,7 @@ export default function TabelaCfops() {
     let cfop = '';
     let grupo = '';
     let desc = '';
+    let aplic = '';
 
     // prefer explicit header names
     for (const [k, v] of entries) {
@@ -206,6 +210,8 @@ export default function TabelaCfops() {
       if (!cfop && (nk === 'cfop' || nk === 'codigo' || nk === 'cod' || nk === 'ncm')) cfop = v;
       // description
       if (!desc && nk.includes('descr')) desc = v;
+      // application / aplicação
+      if (!aplic && (nk.includes('aplic') || nk.includes('aplica') || nk.includes('uso') || nk.includes('aplica\u00e7') )) aplic = v;
       // if still not found, a key that contains 'cfop' but is not 'grupo' could be CFOP
       if (!cfop && nk.includes('cfop')) cfop = v;
     }
@@ -223,9 +229,11 @@ export default function TabelaCfops() {
       const c0 = row[colKeys[0]]; // grupo
       const c1 = row[colKeys[1]]; // cfop
       const c2 = row[colKeys[2]]; // descricao
+      const c3 = colKeys.length >= 4 ? row[colKeys[3]] : undefined; // aplicacao
       grupo = grupo || c0 || '';
       cfop = cfop || c1 || '';
       desc = desc || c2 || '';
+      aplic = aplic || c3 || '';
     }
 
     // fallback: description = first non-empty cell that is not CFOP or Grupo
@@ -268,7 +276,8 @@ export default function TabelaCfops() {
     grupo = tryKeys(row, ['grupo_cfop', 'GRUPO_CFOP', 'grupo cfop', 'grupo', 'grupo_cfop_']);
     cfop = tryKeys(row, ['codigo', 'cod_cfop', 'COD_CFOP', 'cfop', 'cod', 'col_1', 'col_0']);
     desc = tryKeys(row, ['descricao', 'DESCRIÇÃO_CFOP', 'DESCRICAO_CFOP', 'descricao_cfop', 'descricao', 'descricao_completa']);
-    return { grupo, cfop, desc };
+    aplic = tryKeys(row, ['aplicacao', 'APLICACAO', 'APLICAÇÃO', 'APLICACAO_CFOP', 'APLICACAO CFOP', 'uso', 'observacao', 'OBSERVACAO']);
+    return { grupo, cfop, desc, aplic };
   };
 
   return (
@@ -279,11 +288,10 @@ export default function TabelaCfops() {
         <p>Localizar por código: informe o código CFOP e o sistema levará você até a linha correspondente mostrando linhas antes e depois.</p>
         <SearchRow>
           <select value={field} onChange={(e) => setField(e.target.value)} style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #ccc', background: '#0f0f0f', color: '#eee' }}>
-            <option value="grupo">GRUPO_CFOP</option>
             <option value="cfop">COD_CFOP</option>
             <option value="desc">DESCRIÇÃO_CFOP</option>
           </select>
-          <Input placeholder={field === 'cfop' ? 'CFOP (ex: 1101)' : field === 'grupo' ? 'Grupo CFOP' : 'Descrição CFOP'} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') locateByCodigo(); }} />
+          <Input placeholder={field === 'cfop' ? 'CFOP (ex: 1101)' : 'Descrição CFOP'} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') locateByCodigo(); }} />
           <Button onClick={locateByCodigo}>Localizar</Button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Button onClick={() => goToMatch(-1)} disabled={!matches.length}>◀</Button>
@@ -302,15 +310,15 @@ export default function TabelaCfops() {
               <Table>
                 <thead>
                   <tr>
-                    <Th>GRUPO_CFOP</Th>
                     <Th>COD_CFOP</Th>
                     <Th>DESCRIÇÃO_CFOP</Th>
+                    <Th>APLICAÇÃO</Th>
                   </tr>
                 </thead>
                 <tbody>
                   {visible.map((r, i) => {
                     const globalIndex = windowStart + i;
-                    const { grupo, cfop, desc } = detectRow(r);
+                    const { grupo, cfop, desc, aplic } = detectRow(r);
                     const normalizeText = (s) => {
                       const str = String(s || '');
                       return str
@@ -328,9 +336,9 @@ export default function TabelaCfops() {
                     const RowTag = isTarget ? Highlight : 'tr';
                     return (
                       <RowTag key={globalIndex} ref={isTarget ? targetRef : null}>
-                        <Td>{grupo}</Td>
                         <Td>{cfop}</Td>
                         <Td>{desc}</Td>
+                        <Td>{aplic}</Td>
                       </RowTag>
                     );
                   })}
