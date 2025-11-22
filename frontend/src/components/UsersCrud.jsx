@@ -9,9 +9,9 @@ const Container = styled.div`
 
 const Header = styled.div`
   display:flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
 `;
 
 const Controls = styled.div`
@@ -213,27 +213,33 @@ export default function UsersCrud(){
   return (
     <Container>
       <Header>
-        <Title>Gestão de Usuários</Title>
-        <Controls>
-          <SearchWrapper>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Title>Gestão de Usuários</Title>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <SearchWrapper>
               <Select value={searchField} onChange={e=>setSearchField(e.target.value)} style={{ height: 38 }}>
                 <option value="name">Nome</option>
                 <option value="email">E-mail</option>
                 <option value="cpf">CPF/CNPJ</option>
               </Select>
               <SearchInput placeholder={searchField === 'email' ? 'Pesquisar por e-mail' : searchField === 'name' ? 'Pesquisar por nome' : 'Pesquisar por CPF/CNPJ'} value={search} onChange={e=>setSearch(e.target.value)} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
-                <div style={{ color: 'var(--text, #666)', fontSize: 0.95 + 'rem' }}>Exibindo:</div>
-                <Select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{ height: 38 }}>
-                  <option value="all">Todos</option>
-                  <option value="active">Ativo</option>
-                  <option value="inactive">Inativo</option>
-                  <option value="blocked">Bloqueado</option>
-                </Select>
-              </div>
             </SearchWrapper>
-          <NewBtn onClick={openNew}><PlusCircle size={16} /> Novo usuário</NewBtn>
-        </Controls>
+            <NewBtn onClick={openNew}><PlusCircle size={16} /> Novo usuário</NewBtn>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ color: 'var(--text, #666)', fontSize: '0.95rem' }}>Exibindo:</div>
+            <Select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{ height: 38 }}>
+              <option value="all">Todos</option>
+              <option value="active">Ativo</option>
+              <option value="inactive">Inativo</option>
+              <option value="blocked">Bloqueado</option>
+            </Select>
+          </div>
+        </div>
       </Header>
 
       <Card>
