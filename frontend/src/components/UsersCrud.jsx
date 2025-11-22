@@ -316,12 +316,6 @@ export default function UsersCrud(){
               <Input value={form.cpfCnpj || ''} onChange={e=>setForm({...form, cpfCnpj: e.target.value})} />
             </Field>
             <Field>
-              <label>
-                <input type="checkbox" checked={!!form.isBlocked} onChange={e=>setForm({...form, isBlocked: e.target.checked})} />{' '}
-                Bloqueado
-              </label>
-            </Field>
-            <Field>
               <label>Telefone</label>
               <Input value={form.telefone || ''} onChange={e=>setForm({...form, telefone: e.target.value})} />
             </Field>
