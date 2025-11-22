@@ -8,6 +8,7 @@ export default function Import() {
   const theme = useTheme();
   const [fileName, setFileName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -17,6 +18,38 @@ export default function Import() {
     setFileName(file.name);
     setSelectedFile(file);
     setError(null);
+  };
+
+  const onDropFile = (file) => {
+    if (!file) return;
+    // accept only Excel files by extension
+    if (!file.name.match(/\.xlsx?$|\.xls$/i)) {
+      setError('Formato inválido. Use um arquivo .xlsx ou .xls');
+      return;
+    }
+    setFileName(file.name);
+    setSelectedFile(file);
+    setError(null);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isDragging) setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) onDropFile(file);
   };
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
   const [duplicateSamples, setDuplicateSamples] = useState([]);
@@ -158,7 +191,11 @@ export default function Import() {
           <div style={{ background: theme.colors.accent, padding: '12px 18px', borderTopLeftRadius: 8, borderTopRightRadius: 8, display: 'flex', justifyContent: 'center' }}>
             <h3 style={{ margin: 0, color: '#111', textAlign: 'center' }}>Importação</h3>
           </div>
-          <div style={{ padding: 18, color: theme.colors.text }}>
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            style={{ padding: 18, color: theme.colors.text }}>
             <p style={{ marginTop: 0, marginBottom: 12, textAlign: 'center', color: theme.colors.text }}>Carregue aqui a sua planilha</p>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
               <input
@@ -189,6 +226,11 @@ export default function Import() {
               >
                 <UploadCloud color="#111" size={34} />
               </button>
+              {isDragging && (
+                <div style={{ marginTop: 8, padding: 10, borderRadius: 8, background: theme.name === 'light' ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.03)', border: '2px dashed rgba(168,137,42,0.6)', color: theme.colors.text }}>
+                  Solte o arquivo aqui para carregar
+                </div>
+              )}
               {fileName && (
                 <div style={{ marginTop: 8, textAlign: 'center' }}>
                   <div>Arquivo: {fileName}</div>
@@ -233,8 +275,28 @@ export default function Import() {
               {error && <div style={{ marginTop: 8, color: '#ff8b8b', textAlign: 'center' }}>{error}</div>}
             </div>
             {duplicateModalOpen && (
-              <div style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-                <div style={{ width: 560, maxWidth: '92%', borderRadius: 10, background: theme.colors.surface, color: theme.colors.text, padding: 18, boxShadow: '0 12px 40px rgba(0,0,0,0.08)', border: '1px solid rgba(255,82,82,0.12)' }} role="dialog" aria-modal="true">
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => {
+                  // allow dropping a new file on the modal overlay to replace the selection
+                  handleDrop(e);
+                  // if a new file was dropped, close the modal so user can re-run the check/process
+                  setDuplicateModalOpen(false);
+                }}
+                style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => {
+                    // ensure drops inside the dialog are handled the same way as overlay
+                    handleDrop(e);
+                    setDuplicateModalOpen(false);
+                  }}
+                  style={{ width: 560, maxWidth: '92%', borderRadius: 10, background: theme.colors.surface, color: theme.colors.text, padding: 18, boxShadow: '0 12px 40px rgba(0,0,0,0.08)', border: '1px solid rgba(255,82,82,0.12)' }}
+                  role="dialog"
+                  aria-modal="true"
+                >
                   <h3 style={{ marginTop: 0, marginBottom: 8, background: '#ff5252', color: '#000', padding: '8px 12px', borderRadius: 6, display: 'block', width: '100%', textAlign: 'center' }}>Códigos duplicados encontrados</h3>
                   <div style={{ marginTop: 0, marginBottom: 8 }}>
                     {pendingUniqueCount !== null && pendingRemaining !== null && pendingUniqueCount > pendingRemaining ? (
