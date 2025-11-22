@@ -76,10 +76,13 @@ ncmRouter.get("/", async (req, res) => {
     res.json(items);
 
     // Log the search (do not block response if logging fails)
-    if (q && req.user?.role !== 'admin') {
+    // If client indicates skipLog, do not create SearchLog (prevents double-count when item already visible).
+    const skipLog = String(req.query?.skipLog || '').toLowerCase() === 'true' || req.headers['x-skip-searchlog'] === '1';
+    if (q && req.user?.role !== 'admin' && !skipLog) {
       (async () => {
         try {
-          await prisma.searchLog.create({ data: { userId, query: String(q) } });
+          const qRaw = String(q).trim();
+          await prisma.searchLog.create({ data: { userId: Number(req.user.id), query: qRaw } });
         } catch (err) {
           console.error('Erro ao gravar SearchLog', err);
         }

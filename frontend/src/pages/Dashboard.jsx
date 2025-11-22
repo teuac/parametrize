@@ -603,17 +603,25 @@ export default function Dashboard() {
     setSuggestions([]);
     setNoResults(false);
     try {
-      const { data } = await api.get("/ncm", { params: { q: code } });
-  setQuotaMessage('');
-  setQuotaModalOpen(false);
-      // decrement remaining locally (increment used) with animation
-      setQuota((prev) => {
-        if (!prev) return prev;
-        const used = Math.min(prev.limit || 0, (prev.used || 0) + 1);
-        return { ...prev, used };
-      });
-      setPulse(true);
-      setTimeout(() => setPulse(false), 300);
+      // Decide whether this search should be logged/consume quota.
+      const norm = String(code || '').replace(/\./g, '').trim().toLowerCase();
+      const alreadyShown = (items || []).some(i => String(i.codigo || '').replace(/\./g, '').trim().toLowerCase() === norm);
+      const params = { q: code };
+      if (alreadyShown) params.skipLog = true;
+
+      const { data } = await api.get("/ncm", { params });
+      setQuotaMessage('');
+      setQuotaModalOpen(false);
+      // decrement remaining locally (increment used) with animation only when we actually log the search
+      if (!params.skipLog) {
+        setQuota((prev) => {
+          if (!prev) return prev;
+          const used = Math.min(prev.limit || 0, (prev.used || 0) + 1);
+          return { ...prev, used };
+        });
+        setPulse(true);
+        setTimeout(() => setPulse(false), 300);
+      }
       const pinnedItems = items.filter((i) => pinnedCodes.includes(i.codigo));
       // Show newly searched items first, then keep pinned items afterwards
       const combined = [...data, ...pinnedItems];
