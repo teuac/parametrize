@@ -256,6 +256,29 @@ utilRouter.get('/quota', async (req, res) => {
   }
 });
 
+// GET /util/search-usage
+// Returns count of searches today grouped by userId. Admin only.
+utilRouter.get('/search-usage', ensureAdmin, async (req, res) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0,0,0,0);
+    // group by userId using prisma.groupBy
+    const groups = await prisma.searchLog.groupBy({
+      by: ['userId'],
+      where: { createdAt: { gte: startOfDay } },
+      _count: { _all: true }
+    });
+    const usage = Object.create(null);
+    for (const g of groups) {
+      usage[String(g.userId)] = g._count && g._count._all ? Number(g._count._all) : 0;
+    }
+    return res.json({ usage });
+  } catch (err) {
+    console.error('Erro ao obter uso de buscas por usuário:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ error: 'Erro ao obter uso de buscas' });
+  }
+});
+
 // Get chapter by its two-digit code (chapter_code)
 utilRouter.get('/chapter/:code', async (req, res) => {
   try {

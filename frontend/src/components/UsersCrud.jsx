@@ -156,10 +156,11 @@ export default function UsersCrud(){
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [searchField, setSearchField] = useState('email');
+  const [usageMap, setUsageMap] = useState({});
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true, cpfCnpj: '', telefone: '', adesao: null, activeUpdatedAt: null, dailySearchLimit: 100 });
+  const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true, isBlocked: false, cpfCnpj: '', telefone: '', adesao: null, activeUpdatedAt: null, dailySearchLimit: 100 });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
@@ -168,19 +169,26 @@ export default function UsersCrud(){
     try{
       const { data } = await api.get('/users');
       setUsers(data);
+      try {
+        const resp = await api.get('/util/search-usage');
+        setUsageMap(resp.data?.usage || {});
+      } catch (e) {
+        console.warn('Não foi possível obter uso de buscas por usuário', e);
+        setUsageMap({});
+      }
     }catch(e){ console.error(e) }
     setLoading(false);
   };
 
   useEffect(()=>{ fetchUsers() }, []);
 
-  const openNew = () => { setEditing(null); setForm({ name:'', email:'', password:'', role:'user', active: true, cpfCnpj: '', telefone: '', dailySearchLimit: 100 }); setModalOpen(true) };
-  const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role, active: u.active ?? true, cpfCnpj: u.cpfCnpj ?? '', telefone: u.telefone ?? '', adesao: u.adesao, activeUpdatedAt: u.activeUpdatedAt, dailySearchLimit: u.dailySearchLimit ?? 100 }); setModalOpen(true) };
+  const openNew = () => { setEditing(null); setForm({ name:'', email:'', password:'', role:'user', active: true, isBlocked: false, cpfCnpj: '', telefone: '', dailySearchLimit: 100 }); setModalOpen(true) };
+  const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role, active: u.active ?? true, isBlocked: u.isBlocked ?? u.blocked ?? false, cpfCnpj: u.cpfCnpj ?? '', telefone: u.telefone ?? '', adesao: u.adesao, activeUpdatedAt: u.activeUpdatedAt, dailySearchLimit: u.dailySearchLimit ?? 100 }); setModalOpen(true) };
 
   const save = async () => {
     try{
       if(editing){
-        await api.put(`/users/${editing.id}`, { name: form.name, email: form.email, ...(form.password?{password:form.password}:{}), role: form.role, active: form.active, cpfCnpj: form.cpfCnpj, telefone: form.telefone, dailySearchLimit: Number(form.dailySearchLimit || 0) });
+        await api.put(`/users/${editing.id}`, { name: form.name, email: form.email, ...(form.password?{password:form.password}:{}), role: form.role, active: form.active, isBlocked: Boolean(form.isBlocked), cpfCnpj: form.cpfCnpj, telefone: form.telefone, dailySearchLimit: Number(form.dailySearchLimit || 0) });
       }else{
         await api.post('/users', { ...form, dailySearchLimit: Number(form.dailySearchLimit || 0) });
       }
@@ -227,9 +235,10 @@ export default function UsersCrud(){
                 <Th>E-mail</Th>
                 <Th>CPF/CNPJ</Th>
                 <Th>Telefone</Th>
-                  <Th>Limite buscas/dia</Th>
-                  <Th>Role</Th>
-                  <Th>Status</Th>
+                <Th>Limite buscas/dia</Th>
+                <Th>Buscas restantes</Th>
+                <Th>Role</Th>
+                <Th>Status</Th>
                 <Th>Adesão</Th>
                 <Th>Últ. alteração status</Th>
                 <Th></Th>
@@ -251,8 +260,14 @@ export default function UsersCrud(){
                   <Td>{u.cpfCnpj || '-'}</Td>
                   <Td>{u.telefone || '-'}</Td>
                   <Td>{typeof u.dailySearchLimit !== 'undefined' ? u.dailySearchLimit : '-'}</Td>
+                  <Td>{(() => {
+                    const limit = Number(u.dailySearchLimit ?? 0);
+                    const used = Number(usageMap[String(u.id)] || 0);
+                    const remaining = limit - used;
+                    return Number.isFinite(remaining) ? String(remaining) : '-';
+                  })()}</Td>
                   <Td>{u.role}</Td>
-                  <Td>{u.active ? 'Ativo' : 'Inativo'}</Td>
+                  <Td>{(u.isBlocked ?? u.blocked) ? 'Bloqueado' : (u.active ? 'Ativo' : 'Inativo')}</Td>
                   <Td>{u.adesao ? new Date(u.adesao).toLocaleString() : new Date(u.createdAt).toLocaleString()}</Td>
                   <Td>{u.activeUpdatedAt ? new Date(u.activeUpdatedAt).toLocaleString() : '-'}</Td>
                   <Td>
@@ -301,6 +316,12 @@ export default function UsersCrud(){
               <Input value={form.cpfCnpj || ''} onChange={e=>setForm({...form, cpfCnpj: e.target.value})} />
             </Field>
             <Field>
+              <label>
+                <input type="checkbox" checked={!!form.isBlocked} onChange={e=>setForm({...form, isBlocked: e.target.checked})} />{' '}
+                Bloqueado
+              </label>
+            </Field>
+            <Field>
               <label>Telefone</label>
               <Input value={form.telefone || ''} onChange={e=>setForm({...form, telefone: e.target.value})} />
             </Field>
@@ -310,9 +331,18 @@ export default function UsersCrud(){
             </Field>
             <Field>
               <label>Status</label>
-              <Select value={form.active ? 'active' : 'inactive'} onChange={e=>setForm({...form, active: e.target.value === 'active'})}>
+              <Select
+                value={form.isBlocked ? 'blocked' : (form.active ? 'active' : 'inactive')}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === 'active') setForm({ ...form, active: true, isBlocked: false });
+                  else if (v === 'inactive') setForm({ ...form, active: false, isBlocked: false });
+                  else if (v === 'blocked') setForm({ ...form, active: false, isBlocked: true });
+                }}
+              >
                 <option value="active">Ativo</option>
                 <option value="inactive">Inativo</option>
+                <option value="blocked">Bloqueado</option>
               </Select>
             </Field>
             {editing && (

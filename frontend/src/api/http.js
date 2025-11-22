@@ -41,16 +41,24 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error && error.response && (error.response.status === 401 || error.response.status === 403)) {
-      // clear local storage and dispatch sessionExpired so the app can show a modal
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      const returnTo = window.location.pathname + window.location.search;
-      try {
-        window.dispatchEvent(new CustomEvent('sessionExpired', { detail: { returnTo } }));
-      } catch (e) {
-        window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`;
-      }
-      return Promise.reject(error);
+        // Only treat these errors as "session expired" when the request was authenticated
+        // (i.e. carried an Authorization header). This prevents showing the session-expired
+        // modal for public endpoints such as the login route which legitimately return 401/403
+        // with user-facing messages.
+        const reqHadAuthHeader = !!(error.config && error.config.headers && error.config.headers.Authorization);
+        if (reqHadAuthHeader) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          const returnTo = window.location.pathname + window.location.search;
+          try {
+            window.dispatchEvent(new CustomEvent('sessionExpired', { detail: { returnTo } }));
+          } catch (e) {
+            window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`;
+          }
+          return Promise.reject(error);
+        }
+        // otherwise, let the caller handle the error (e.g. login page shows message)
+        return Promise.reject(error);
     }
     return Promise.reject(error);
   }

@@ -21,8 +21,14 @@ authRouter.post('/login', async (req, res) => {
     return res.status(403).json({ error: 'Conta inativa. Entre em contato com o administrador do sistema.' });
   }
 
+  // Check if user is blocked
+  if (user.blocked === true) {
+    return res.status(403).json({ error: 'Conta bloqueada. Entre em contato com o administrador do sistema.' });
+  }
+
   const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '8h' });
-  res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, active: user.active } });
+  // include `isBlocked` alias for API clients
+  res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, active: user.active, blocked: user.blocked, isBlocked: user.blocked } });
 });
 
 // POST /auth/forgot -> send password reset link (if user exists)

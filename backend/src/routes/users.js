@@ -10,16 +10,20 @@ export const usersRouter = Router();
 usersRouter.use(ensureAuth, ensureAdmin);
 
 usersRouter.get('/', async (_, res) => {
-  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, active: true, createdAt: true, cpfCnpj: true, adesao: true, telefone: true, activeUpdatedAt: true, dailySearchLimit: true } });
-  res.json(users);
+  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, active: true, blocked: true, createdAt: true, cpfCnpj: true, adesao: true, telefone: true, activeUpdatedAt: true, dailySearchLimit: true } });
+  // expose legacy `blocked` and the new `isBlocked` alias in the API
+  const out = users.map(u => ({ ...u, isBlocked: u.blocked }));
+  res.json(out);
 });
 
 usersRouter.post('/', async (req, res) => {
-  const { name, email, password, role = Role.user, active = true, cpfCnpj, telefone, dailySearchLimit = 100 } = req.body;
+  // accept both `blocked` and `isBlocked` from the client for compatibility
+  const { name, email, password, role = Role.user, active = true, blocked = false, isBlocked, cpfCnpj, telefone, dailySearchLimit = 100 } = req.body;
+  const finalBlocked = typeof isBlocked !== 'undefined' ? Boolean(isBlocked) : Boolean(blocked);
   const plainPassword = password; // keep plain password to include in email
   const hash = await bcrypt.hash(password, 10);
   // adesao will be set by Prisma default(now())
-  const user = await prisma.user.create({ data: { name, email, password: hash, role, active, cpfCnpj, telefone, activeUpdatedAt: active ? new Date() : null, dailySearchLimit } });
+  const user = await prisma.user.create({ data: { name, email, password: hash, role, active, blocked: finalBlocked, cpfCnpj, telefone, activeUpdatedAt: active ? new Date() : null, dailySearchLimit } });
 
   // Try to send welcome email with access data. Do not block user creation on email failure.
   (async () => {
@@ -65,6 +69,12 @@ usersRouter.put('/:id', async (req, res) => {
     if (existing && existing.active !== incoming.active) {
       incoming.activeUpdatedAt = new Date();
     }
+  }
+
+  // allow updating blocked flag as well. accept `isBlocked` alias from client
+  if (typeof incoming.isBlocked !== 'undefined') {
+    incoming.blocked = Boolean(incoming.isBlocked);
+    delete incoming.isBlocked;
   }
 
   await prisma.user.update({ where: { id }, data: incoming });

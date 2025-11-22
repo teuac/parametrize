@@ -19,6 +19,7 @@ model User {
   password   String
   role       Role     @default(user)
   active     Boolean  @default(true)
+  blocked    Boolean  @default(false)
   cpfCnpj    String? 
   adesao     DateTime @default(now())
   telefone   String?
