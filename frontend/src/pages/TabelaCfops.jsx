@@ -117,9 +117,10 @@ export default function TabelaCfops() {
     const normalizeDigits = (s) => String(s || '').replace(/\D/g, '').trim();
 
     const getFieldValue = (row) => {
-      const { grupo, cfop, desc } = detectRow(row);
+      const { grupo, cfop, desc, aplic } = detectRow(row);
       if (field === 'grupo') return grupo;
       if (field === 'cfop') return cfop;
+      if (field === 'aplic') return aplic;
       return desc;
     };
 
@@ -290,8 +291,9 @@ export default function TabelaCfops() {
           <select value={field} onChange={(e) => setField(e.target.value)} style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #ccc', background: '#0f0f0f', color: '#eee' }}>
             <option value="cfop">COD_CFOP</option>
             <option value="desc">DESCRIÇÃO_CFOP</option>
+            <option value="aplic">APLICAÇÃO</option>
           </select>
-          <Input placeholder={field === 'cfop' ? 'CFOP (ex: 1101)' : 'Descrição CFOP'} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') locateByCodigo(); }} />
+          <Input placeholder={field === 'cfop' ? 'CFOP (ex: 1101)' : field === 'aplic' ? 'Aplicação / Uso' : 'Descrição CFOP'} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') locateByCodigo(); }} />
           <Button onClick={locateByCodigo}>Localizar</Button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Button onClick={() => goToMatch(-1)} disabled={!matches.length}>◀</Button>
