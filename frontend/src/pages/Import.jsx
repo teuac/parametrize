@@ -202,9 +202,10 @@ export default function Import() {
           </div>
           <div
             onDragOver={handleDragOver}
+            onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            style={{ padding: 18, color: theme.colors.text }}>
+            style={{ padding: 18, color: theme.colors.text, position: 'relative' }}>
             <p style={{ marginTop: 0, marginBottom: 12, textAlign: 'center', color: theme.colors.text }}>Carregue aqui a sua planilha</p>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
               <input
@@ -236,8 +237,10 @@ export default function Import() {
                 <UploadCloud color="#111" size={34} />
               </button>
               {isDragging && (
-                <div style={{ marginTop: 8, padding: 10, borderRadius: 8, background: theme.name === 'light' ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.03)', border: '2px dashed rgba(168,137,42,0.6)', color: theme.colors.text }}>
-                  Solte o arquivo aqui para carregar
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 12, pointerEvents: 'none' }}>
+                  <div style={{ padding: 14, borderRadius: 8, background: theme.name === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(17,17,17,0.9)', border: '2px dashed rgba(168,137,42,0.9)', color: theme.colors.text, boxShadow: '0 6px 18px rgba(0,0,0,0.12)' }}>
+                    Solte o arquivo aqui para carregar
+                  </div>
                 </div>
               )}
               {fileName && (
@@ -302,10 +305,15 @@ export default function Import() {
                     handleDrop(e);
                     setDuplicateModalOpen(false);
                   }}
-                  style={{ width: 560, maxWidth: '92%', borderRadius: 10, background: theme.colors.surface, color: theme.colors.text, padding: 18, boxShadow: '0 12px 40px rgba(0,0,0,0.08)', border: '1px solid rgba(255,82,82,0.12)' }}
+                  style={{ width: 560, maxWidth: '92%', borderRadius: 10, background: theme.colors.surface, color: theme.colors.text, padding: 18, boxShadow: '0 12px 40px rgba(0,0,0,0.08)', border: '1px solid rgba(255,82,82,0.12)', position: 'relative' }}
                   role="dialog"
                   aria-modal="true"
                 >
+                  {isDragging && (
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, pointerEvents: 'none' }}>
+                      <div style={{ padding: 16, borderRadius: 8, background: 'rgba(255,82,82,0.95)', color: '#000', fontWeight: 600 }}>Solte o arquivo aqui para carregar</div>
+                    </div>
+                  )}
                   <h3 style={{ marginTop: 0, marginBottom: 8, background: '#ff5252', color: '#000', padding: '8px 12px', borderRadius: 6, display: 'block', width: '100%', textAlign: 'center' }}>Códigos duplicados encontrados</h3>
                   <div style={{ marginTop: 0, marginBottom: 8 }}>
                     {pendingUniqueCount !== null && pendingRemaining !== null && pendingUniqueCount > pendingRemaining ? (
