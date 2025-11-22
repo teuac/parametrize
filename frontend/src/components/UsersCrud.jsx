@@ -155,6 +155,7 @@ const CancelBtn = styled.button`
 export default function UsersCrud(){
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
+  const [searchField, setSearchField] = useState('email');
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -206,7 +207,12 @@ export default function UsersCrud(){
         <Title>Gestão de Usuários</Title>
         <Controls>
           <SearchWrapper>
-            <SearchInput placeholder="Pesquisar por e-mail" value={search} onChange={e=>setSearch(e.target.value)} />
+            <Select value={searchField} onChange={e=>setSearchField(e.target.value)} style={{ height: 38 }}>
+              <option value="name">Nome</option>
+              <option value="email">E-mail</option>
+              <option value="cpf">CPF/CNPJ</option>
+            </Select>
+            <SearchInput placeholder={searchField === 'email' ? 'Pesquisar por e-mail' : searchField === 'name' ? 'Pesquisar por nome' : 'Pesquisar por CPF/CNPJ'} value={search} onChange={e=>setSearch(e.target.value)} />
           </SearchWrapper>
           <NewBtn onClick={openNew}><PlusCircle size={16} /> Novo usuário</NewBtn>
         </Controls>
@@ -231,7 +237,13 @@ export default function UsersCrud(){
             </thead>
             <tbody>
               {users
-                .filter(u => !search || (u.email || '').toLowerCase().includes(search.toLowerCase()))
+                .filter(u => {
+                  if (!search) return true;
+                  const q = String(search).toLowerCase();
+                  if (searchField === 'name') return (u.name || '').toLowerCase().includes(q);
+                  if (searchField === 'cpf') return (u.cpfCnpj || '').toLowerCase().includes(q);
+                  return (u.email || '').toLowerCase().includes(q);
+                })
                 .map(u=> (
                 <tr key={u.id}>
                   <Td>{u.name}</Td>
