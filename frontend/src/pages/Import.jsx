@@ -62,6 +62,7 @@ export default function Import() {
   };
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
   const [duplicateSamples, setDuplicateSamples] = useState([]);
+  const [missingSamples, setMissingSamples] = useState([]);
   const [pendingBase64, setPendingBase64] = useState(null);
   const [pendingUniqueCount, setPendingUniqueCount] = useState(null);
   const [pendingRemaining, setPendingRemaining] = useState(null);
@@ -120,6 +121,7 @@ export default function Import() {
       try {
         const checkResp = await api.post('/util/import-ncm/check', { filename: selectedFile.name, data: base64 });
         const duplicates = checkResp.data?.duplicates || [];
+        const missing = checkResp.data?.missing || [];
         const uniqueCount = Number(checkResp.data?.uniqueCount || 0);
         // fetch current quota
         let remaining = null;
@@ -134,9 +136,10 @@ export default function Import() {
         }
 
         // If there are duplicates OR uniqueCount exceeds remaining quota (when known), show modal
-        const needModal = (duplicates.length > 0) || (remaining !== null && uniqueCount > remaining);
+        const needModal = (duplicates.length > 0) || (missing.length > 0) || (remaining !== null && uniqueCount > remaining);
         if (needModal) {
           setDuplicateSamples(duplicates.slice(0, 20));
+          setMissingSamples(missing.slice(0, 20));
           setPendingBase64(base64);
           setPendingUniqueCount(uniqueCount);
           setPendingRemaining(remaining);
@@ -314,17 +317,27 @@ export default function Import() {
                       <div style={{ padding: 16, borderRadius: 8, background: 'rgba(255,82,82,0.95)', color: '#000', fontWeight: 600 }}>Solte o arquivo aqui para carregar</div>
                     </div>
                   )}
-                  <h3 style={{ marginTop: 0, marginBottom: 8, background: '#ff5252', color: '#000', padding: '8px 12px', borderRadius: 6, display: 'block', width: '100%', textAlign: 'center' }}>Códigos duplicados encontrados</h3>
+                  <h3 style={{ marginTop: 0, marginBottom: 8, background: '#ff5252', color: '#000', padding: '8px 12px', borderRadius: 6, display: 'block', width: '100%', textAlign: 'center' }}>
+                    {(duplicateSamples && duplicateSamples.length > 0) && (missingSamples && missingSamples.length > 0) ? 'Códigos duplicados e não encontrados' : (missingSamples && missingSamples.length > 0 ? 'Códigos não encontrados' : 'Códigos duplicados encontrados')}
+                  </h3>
                   <div style={{ marginTop: 0, marginBottom: 8 }}>
                     {pendingUniqueCount !== null && pendingRemaining !== null && pendingUniqueCount > pendingRemaining ? (
                       <p style={{ margin: 0 }}>A planilha possui <strong>{pendingUniqueCount}</strong> códigos únicos, e você tem <strong>{pendingRemaining}</strong> consultas restantes hoje. Serão processados apenas <strong>{pendingRemaining}</strong> códigos (os demais serão ignorados). Deseja continuar?</p>
                     ) : (
-                      <p style={{ margin: 0 }}>A planilha possui códigos repetidos. Esses códigos duplicados serão ignorados durante o processamento.</p>
+                      <>
+                        {(duplicateSamples && duplicateSamples.length > 0) && <p style={{ margin: 0 }}>A planilha possui códigos repetidos. Esses códigos duplicados serão ignorados durante o processamento.</p>}
+                        {(missingSamples && missingSamples.length > 0) && <p style={{ margin: 0 }}>Os seguintes NCMs não foram encontrados no sistema e serão ignorados durante o processamento.</p>}
+                      </>
                     )}
                   </div>
                   {duplicateSamples && duplicateSamples.length > 0 && (
                     <div style={{ marginTop: 6, maxHeight: 140, overflow: 'auto', background: theme.name === 'light' ? '#f6f6f6' : '#111', padding: 10, borderRadius: 6, border: '1px solid rgba(255,82,82,0.06)', color: theme.colors.text }}>
                       {duplicateSamples.join(', ')}
+                    </div>
+                  )}
+                  {missingSamples && missingSamples.length > 0 && (
+                    <div style={{ marginTop: 8, maxHeight: 140, overflow: 'auto', background: theme.name === 'light' ? '#fff6f6' : '#111', padding: 10, borderRadius: 6, border: '1px solid rgba(255,82,82,0.06)', color: theme.colors.text }}>
+                      {missingSamples.join(', ')}
                     </div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14 }}>

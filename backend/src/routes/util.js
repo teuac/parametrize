@@ -406,101 +406,42 @@ utilRouter.post('/import-ncm', async (req, res) => {
       if (norm) uniqueCodes.add(norm);
     });
 
-    // Fetch matches for each unique normalized code (one query per unique code)
+    // Fetch matches for each unique normalized code (exact digit equality only)
     const matchesMap = Object.create(null);
     for (const code of Array.from(uniqueCodes)) {
       try {
-        // build candidate normalized forms to try in order
         const digitsOnly = String(code || '').replace(/\D/g, '');
-        const candidates = new Set();
-        if (digitsOnly) candidates.add(digitsOnly);
-        // common Excel/formatting issues: leading zero stripped (length 7) -> try padStart
-        if (digitsOnly.length === 7) candidates.add(digitsOnly.padStart(8, '0'));
-        // if shorter (4 or 6), try padding to 8 on the right (typical NCM expansion)
-        if (digitsOnly.length > 0 && digitsOnly.length < 8) candidates.add(digitsOnly.padEnd(8, '0'));
-        // also try first 4 digits (position) as prefix search candidate
-        const first4 = digitsOnly.slice(0, 4);
-
-        let found = [];
-        // try each exact candidate using regexp_replace to remove any non-digits from DB side
-        for (const cand of Array.from(candidates)) {
-          if (!cand) continue;
-          try {
-            const q = await prisma.$queryRaw`
-              SELECT n."codigo" as "ncmCodigo",
-                     n."descricao" as "ncmDescricao",
-                     n."cClasstrib" as "ncmCClasstrib",
-                     c."codigoClassTrib" as "codigoClassTrib",
-                     c."cstIbsCbs" as "cstIbsCbs",
-                     c."descricaoCstIbsCbs" as "descricaoCstIbsCbs",
-                     c."descricaoClassTrib" as "descricaoClassTrib",
-                     c."pRedIBS" as "pRedIBS",
-                     c."pRedCBS" as "pRedCBS",
-                     c."link" as "link"
-              FROM "Ncm" n
-              LEFT JOIN "ClassTrib" c ON n."cClasstrib" = c."codigoClassTrib"
-              WHERE regexp_replace(n."codigo",'\\D','','g') = ${cand};`;
-            if (Array.isArray(q) && q.length) { found = q; break; }
-          } catch (e) {
-            console.error('Erro ao tentar match exato para', cand, e && e.stack ? e.stack : e);
-          }
+        if (!digitsOnly) {
+          matchesMap[code] = [];
+          continue;
         }
-
-        // if still no results, try prefix match with the original normalized code
-        if ((!Array.isArray(found) || found.length === 0) && digitsOnly) {
-          try {
-            const q2 = await prisma.$queryRaw`
-              SELECT n."codigo" as "ncmCodigo",
-                     n."descricao" as "ncmDescricao",
-                     n."cClasstrib" as "ncmCClasstrib",
-                     c."codigoClassTrib" as "codigoClassTrib",
-                     c."cstIbsCbs" as "cstIbsCbs",
-                     c."descricaoCstIbsCbs" as "descricaoCstIbsCbs",
-                     c."descricaoClassTrib" as "descricaoClassTrib",
-                     c."pRedIBS" as "pRedIBS",
-                     c."pRedCBS" as "pRedCBS",
-                     c."link" as "link"
-              FROM "Ncm" n
-              LEFT JOIN "ClassTrib" c ON n."cClasstrib" = c."codigoClassTrib"
-              WHERE regexp_replace(n."codigo",'\\D','','g') LIKE ${digitsOnly} || '%'
-              LIMIT 10;`;
-            if (Array.isArray(q2) && q2.length) found = q2;
-          } catch (e) {
-            console.error('Erro no fallback prefix match para código', digitsOnly, e && e.stack ? e.stack : e);
+        try {
+          const q = await prisma.$queryRaw`
+            SELECT n."codigo" as "ncmCodigo",
+                   n."descricao" as "ncmDescricao",
+                   n."cClasstrib" as "ncmCClasstrib",
+                   c."codigoClassTrib" as "codigoClassTrib",
+                   c."cstIbsCbs" as "cstIbsCbs",
+                   c."descricaoCstIbsCbs" as "descricaoCstIbsCbs",
+                   c."descricaoClassTrib" as "descricaoClassTrib",
+                   c."pRedIBS" as "pRedIBS",
+                   c."pRedCBS" as "pRedCBS",
+                   c."link" as "link"
+            FROM "Ncm" n
+            LEFT JOIN "ClassTrib" c ON n."cClasstrib" = c."codigoClassTrib"
+            WHERE regexp_replace(n."codigo",'\\D','','g') = ${digitsOnly};`;
+          matchesMap[code] = Array.isArray(q) && q.length ? q : [];
+          if (!matchesMap[code].length) {
+            // no exact match found
+            // debug log for visibility
+            console.warn('Nenhuma correspondência exata encontrada para NCM (normalized):', code);
           }
-        }
-
-        // as a last attempt, try searching by position (first 4 digits) if available
-        if ((!Array.isArray(found) || found.length === 0) && first4 && first4.length === 4) {
-          try {
-            const q3 = await prisma.$queryRaw`
-              SELECT n."codigo" as "ncmCodigo",
-                     n."descricao" as "ncmDescricao",
-                     n."cClasstrib" as "ncmCClasstrib",
-                     c."codigoClassTrib" as "codigoClassTrib",
-                     c."cstIbsCbs" as "cstIbsCbs",
-                     c."descricaoCstIbsCbs" as "descricaoCstIbsCbs",
-                     c."descricaoClassTrib" as "descricaoClassTrib",
-                     c."pRedIBS" as "pRedIBS",
-                     c."pRedCBS" as "pRedCBS",
-                     c."link" as "link"
-              FROM "Ncm" n
-              LEFT JOIN "ClassTrib" c ON n."cClasstrib" = c."codigoClassTrib"
-              WHERE regexp_replace(n."codigo",'\\D','','g') LIKE ${first4} || '%'
-              LIMIT 10;`;
-            if (Array.isArray(q3) && q3.length) found = q3;
-          } catch (e) {
-            console.error('Erro no fallback position prefix match para', first4, e && e.stack ? e.stack : e);
-          }
-        }
-
-        matchesMap[code] = Array.isArray(found) && found.length ? found : [];
-        if (!matchesMap[code].length) {
-          // log unmatched codes with the original raw code to help debugging
-          console.warn('Nenhuma correspondência encontrada para NCM (normalized):', code, 'candidates:', Array.from(candidates).join(','));
+        } catch (e) {
+          console.error('Erro ao consultar NCM exato para', digitsOnly, e && e.stack ? e.stack : e);
+          matchesMap[code] = [];
         }
       } catch (err) {
-        console.error('Erro ao buscar NCM durante import (batch):', err && err.stack ? err.stack : err);
+        console.error('Erro ao processar código durante import (batch):', err && err.stack ? err.stack : err);
         matchesMap[code] = [];
       }
     }
@@ -542,21 +483,7 @@ utilRouter.post('/import-ncm', async (req, res) => {
         }
         processedNorms.add(norm);
 
-        // Log this processed search so quota reflects import activity (non-blocking)
-        try {
-          if (req.user && req.user.role !== 'admin') {
-            (async () => {
-              try {
-                await prisma.searchLog.create({ data: { userId: Number(req.user.id), query: norm } });
-              } catch (e) {
-                console.error('Erro ao gravar SearchLog durante import:', e && e.stack ? e.stack : e);
-              }
-            })();
-          }
-        } catch (e) {
-          // swallow any unexpected errors in logging
-          console.error('Erro inesperado ao tentar registrar SearchLog durante import:', e && e.stack ? e.stack : e);
-        }
+            // do not log here — we'll log only when we actually find DB matches for this norm
       }
 
       // build base row values aligned with original headers
@@ -564,6 +491,21 @@ utilRouter.post('/import-ncm', async (req, res) => {
 
       const matches = norm ? (matchesMap[norm] || []) : [];
       if (matches.length) {
+        // Non-blocking: log one SearchLog entry per processed normalized NCM (only for non-admin users)
+        try {
+          if (req.user && req.user.role !== 'admin') {
+            (async () => {
+              try {
+                await prisma.searchLog.create({ data: { userId: Number(req.user.id), query: norm } });
+              } catch (e) {
+                console.error('Erro ao gravar SearchLog durante import (após match):', e && e.stack ? e.stack : e);
+              }
+            })();
+          }
+        } catch (e) {
+          console.error('Erro inesperado ao tentar registrar SearchLog durante import (após match):', e && e.stack ? e.stack : e);
+        }
+
         for (const f of matches) {
           const pRedIBS = parseFloat(f.pRedIBS) || 0;
           const pRedCBS = parseFloat(f.pRedCBS) || 0;
@@ -608,19 +550,10 @@ utilRouter.post('/import-ncm', async (req, res) => {
           outRows.push(outRow);
         }
       } else {
-        // no matches — attempt to infer capítulo from the input NCM code
-        const sourceCode = ncmRaw || '';
-        const digitsOnlySrc = sourceCode.replace(/\D/g, '');
-        const pref2 = String((digitsOnlySrc || '').slice(0,2)).padStart(2, '0');
-        const chDesc = await fetchChapterDesc(pref2);
-
-        const emptyExtras = Array(extraCols.length).fill('');
-        // extraCols = ['Descrição NCM','Capítulo', ...]
-        emptyExtras[0] = '';
-        emptyExtras[1] = chDesc || '';
-
-        const outRow = baseRow.slice(0, insertPos).concat(emptyExtras).concat(baseRow.slice(insertPos));
-        outRows.push(outRow);
+        // no matches — skip this input NCM entirely (will be ignored in output)
+        // this implements the requirement: only NCMs that actually exist in DB are exported
+        // continue to next input row
+        continue;
       }
     }
 
@@ -812,7 +745,7 @@ utilRouter.post('/import-ncm/check', async (req, res) => {
     if (ncmColIndex === -1) return res.json({ duplicates: [] });
 
     const dataRows = raw.slice(headerRowIndex + 1).map(r => Array.isArray(r) ? r : []);
-    const seen = Object.create(null);
+    const seen = Object.create(null); // norm -> raw sample
     const duplicates = new Set();
     for (const row of dataRows) {
       const cellVal = row[ncmColIndex];
@@ -823,12 +756,33 @@ utilRouter.post('/import-ncm/check', async (req, res) => {
       if (seen[norm]) {
         duplicates.add(ncmRaw);
       } else {
-        seen[norm] = true;
+        // store first seen raw representation for user-friendly reporting
+        seen[norm] = ncmRaw;
       }
     }
 
-  const uniqueCount = Object.keys(seen).length;
-  return res.json({ duplicates: Array.from(duplicates), uniqueCount });
+    const uniqueCount = Object.keys(seen).length;
+
+    // check DB existence for each unique normalized code and collect missing raw values
+    const missing = [];
+    const normKeys = Object.keys(seen);
+    for (const norm of normKeys) {
+      try {
+        const q = await prisma.$queryRaw`
+          SELECT n."codigo" as codigo
+          FROM "Ncm" n
+          WHERE regexp_replace(n."codigo",'\\D','','g') = ${norm}
+          LIMIT 1;`;
+        const exists = Array.isArray(q) && q.length > 0;
+        if (!exists) missing.push(seen[norm]);
+      } catch (e) {
+        console.error('Erro ao verificar existência de NCM durante preflight:', norm, e && e.stack ? e.stack : e);
+        // on error, treat as missing to be safe
+        missing.push(seen[norm]);
+      }
+    }
+
+    return res.json({ duplicates: Array.from(duplicates), uniqueCount, missing });
   } catch (err) {
     console.error('Erro no import-ncm/check:', err && err.stack ? err.stack : err);
     return res.status(500).json({ error: 'Erro ao verificar planilha.' });
