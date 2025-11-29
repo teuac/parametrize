@@ -370,7 +370,12 @@ export default function UsersCrud(){
               <>
                 <Field>
                   <label>Tamanho do pacote (limite)</label>
-                  <Input type="number" min={0} value={form.packageLimit ?? 0} onChange={e => setForm({ ...form, packageLimit: Number(e.target.value || 0) })} />
+                  <Input type="number" min={0} value={form.packageLimit ?? 0} onChange={e => {
+                    const v = Number(e.target.value || 0);
+                    // when creating a new user (not editing), keep packageRemaining in sync with packageLimit
+                    if (!editing) setForm({ ...form, packageLimit: v, packageRemaining: v });
+                    else setForm({ ...form, packageLimit: v });
+                  }} />
                 </Field>
                 <Field>
                   <label>Consultas restantes no pacote</label>

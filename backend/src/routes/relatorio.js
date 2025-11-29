@@ -39,6 +39,20 @@ if (!ncmList.length) {
       return res.status(404).json({ error: "Nenhum NCM encontrado." });
     }
 
+    // === CAPÍTULOS: buscar descrições dos capítulos (2 dígitos) para usar nos relatórios ===
+    const chapterPrefixes = Array.from(new Set(ncmList.map(n => String(n.codigo || '').slice(0,2)))).filter(p => p && p.length === 2);
+    let chaptersMap = {};
+    if (chapterPrefixes.length) {
+      try {
+        const chapters = await prisma.chapter.findMany({ where: { chapter_code: { in: chapterPrefixes } }, select: { chapter_code: true, description: true } });
+        for (const ch of chapters) {
+          chaptersMap[String(ch.chapter_code).padStart(2,'0')] = ch.description || '';
+        }
+      } catch (e) {
+        // ignore: chapters are optional
+      }
+    }
+
     // try to resolve the requesting user from JWT (optional)
     const getRequestUser = async (req) => {
       try {
@@ -324,11 +338,12 @@ if (!ncmList.length) {
       if (fs.existsSync(templatePath)) {
         await workbook.xlsx.readFile(templatePath);
       } else {
-        // fallback: create a simple sheet similar to PDF
+        // fallback: create a simple sheet similar to PDF but include 'Capítulo' column
         const sheetFallback = workbook.addWorksheet('Relatório NCM');
         sheetFallback.columns = [
           { header: 'Código', key: 'codigo', width: 15 },
           { header: 'Descrição', key: 'descricao', width: 50 },
+          { header: 'Capítulo', key: 'capitulo', width: 30 },
           { header: 'CST', key: 'cst', width: 12 },
           { header: 'cClassTrib', key: 'cClassTrib', width: 15 },
           { header: 'Aliquota IBS', key: 'aliqIBS', width: 14 },
@@ -411,11 +426,13 @@ if (!ncmList.length) {
 
       const headerRow = sheet.getRow(headerRowIndex);
       // Ensure the exported sheet uses our standardized header names so the
-      // column is always named 'cClassTrib' even when using a user-supplied template.
+      // column names are consistent even when using a user-supplied template.
+      // We add 'Capítulo' as a recommended column name.
+      const exportHeaders = ['Código','Descrição','Capítulo','CST','cClassTrib','Aliquota IBS','Aliquota CBS'];
       try {
-        for (let i = 0; i < headers.length; i++) {
+        for (let i = 0; i < exportHeaders.length; i++) {
           const col = i + 1;
-          try { headerRow.getCell(col).value = headers[i]; } catch (e) { /* ignore */ }
+          try { headerRow.getCell(col).value = exportHeaders[i]; } catch (e) { /* ignore */ }
         }
       } catch (e) { /* non-fatal */ }
       // build header->colIndex map
@@ -478,6 +495,7 @@ if (!ncmList.length) {
           const colCodigo = findColByFragments(['cod']);
           const colDesc = findColByFragments(['descr']);
           const colCst = findColByFragments(['cst']);
+          const colCap = findColByFragments(['capit','capitulo']) || null;
           // class column: match headers that contain both 'clas' and 'trib'
           const colClas = findColByFragments(['clas', 'trib']);
           const colAliqIbs = findColByFragments(['aliq', 'ibs']) || findColByFragments(['aliq', 'ib']);
@@ -485,6 +503,12 @@ if (!ncmList.length) {
 
           if (colCodigo) rowVals[colCodigo] = ncm.codigo;
           if (colDesc) rowVals[colDesc] = ncm.descricao;
+          // fill capítulo using two-digit prefix lookup
+          try {
+            const cp = String(ncm.codigo || '').slice(0,2);
+            const capVal = chaptersMap[cp] || '';
+            if (colCap) rowVals[colCap] = capVal;
+          } catch (e) {}
           if (colCst) rowVals[colCst] = c.cstIbsCbs || '-';
           if (colClas) rowVals[colClas] = padClas(c.codigoClassTrib);
           if (colAliqIbs) rowVals[colAliqIbs] = aliqIBSStr;
@@ -552,8 +576,8 @@ if (!ncmList.length) {
     }
   } catch (e) {}
 
-  txt += "Código | Descrição | CST | cClassTrib | Aliq IBS | Aliq CBS\n";
-      txt += "-------------------------------------------------------------------\n";
+      txt += "Código | Descrição | Capítulo | CST | cClassTrib | Aliq IBS | Aliq CBS\n";
+        txt += "---------------------------------------------------------------------------------------------\n";
 
       // Iterate and normalize classTrib like PDF/XLSX
       for (const ncm of ncmList) {
@@ -578,8 +602,10 @@ if (!ncmList.length) {
 
           // do not truncate description in TXT; include full description
           const desc = String(ncm.descricao || "").replace(/\r?\n/g, ' ');
+          const cp = String(ncm.codigo || '').slice(0,2);
+          const capDesc = chaptersMap[cp] || '';
 
-          txt += `${ncm.codigo} | ${desc} | ${c.cstIbsCbs || "-"} | ${padClas(c.codigoClassTrib) || ""} | ${aliqIBSTxt} | ${aliqCBSTxt}\n`;
+          txt += `${ncm.codigo} | ${desc} | ${capDesc} | ${c.cstIbsCbs || "-"} | ${padClas(c.codigoClassTrib) || ""} | ${aliqIBSTxt} | ${aliqCBSTxt}\n`;
         }
       }
 

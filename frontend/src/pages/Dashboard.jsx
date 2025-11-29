@@ -117,8 +117,8 @@ const QuotaBox = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 140px;
-  margin-left: -64px;
+  width: 220px;
+  margin-left: -96px;
   box-sizing: border-box;
 
   @media (max-width: 768px) {
@@ -132,6 +132,10 @@ const QuotaTitle = styled.div`
   font-weight: 600;
   color: rgba(168,137,42,0.95);
   margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 `;
 
 const QuotaNumber = styled.div`
@@ -174,7 +178,7 @@ const SearchBar = styled.div`
   align-items: center;
   gap: 10px;
   margin: 0 auto; /* keep the search bar exactly centered */
-  transform: translateX(-64px); /* bring the search bar closer to the QuotaBox */
+  transform: translateX(-96px); /* bring the search bar closer to the wider QuotaBox */
   transition: transform 180ms ease;
 
   input {
