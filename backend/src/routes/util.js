@@ -244,12 +244,22 @@ utilRouter.get('/quota', async (req, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Não autorizado' });
-    const userRecord = await prisma.user.findUnique({ where: { id: userId }, select: { dailySearchLimit: true } });
-    const limit = userRecord?.dailySearchLimit ?? 100;
-    const startOfDay = new Date();
-    startOfDay.setHours(0,0,0,0);
-    const used = await prisma.searchLog.count({ where: { userId, createdAt: { gte: startOfDay } } });
-    return res.json({ used, limit });
+    // fetch quota fields from user
+    const userRecord = await prisma.user.findUnique({ where: { id: userId }, select: { dailySearchLimit: true, quotaType: true, packageLimit: true, packageRemaining: true } });
+    const quotaType = userRecord?.quotaType || 'DAILY';
+    if (String(quotaType).toUpperCase() === 'PACKAGE') {
+      const limit = Number(userRecord?.packageLimit || 0);
+      const remaining = Number(userRecord?.packageRemaining || 0);
+      const used = Math.max(0, limit - remaining);
+      return res.json({ type: 'package', used, limit, remaining });
+    } else {
+      const limit = Number(userRecord?.dailySearchLimit ?? 100);
+      const startOfDay = new Date();
+      startOfDay.setHours(0,0,0,0);
+      const used = await prisma.searchLog.count({ where: { userId, createdAt: { gte: startOfDay } } });
+      const remaining = Math.max(0, limit - used);
+      return res.json({ type: 'daily', used, limit, remaining });
+    }
   } catch (err) {
     console.error('Erro ao obter cota do usuário', err);
     return res.status(500).json({ error: 'Erro ao obter cota' });
@@ -491,12 +501,24 @@ utilRouter.post('/import-ncm', async (req, res) => {
 
       const matches = norm ? (matchesMap[norm] || []) : [];
       if (matches.length) {
-        // Non-blocking: log one SearchLog entry per processed normalized NCM (only for non-admin users)
+        // Non-blocking: record one SearchLog and decrement package if applicable
         try {
           if (req.user && req.user.role !== 'admin') {
             (async () => {
               try {
-                await prisma.searchLog.create({ data: { userId: Number(req.user.id), query: norm } });
+                const userIdNum = Number(req.user.id);
+                const u = await prisma.user.findUnique({ where: { id: userIdNum }, select: { quotaType: true, packageRemaining: true } });
+                if (u && String(u.quotaType).toUpperCase() === 'PACKAGE') {
+                  // attempt to decrement packageRemaining atomically
+                  const upd = await prisma.user.updateMany({ where: { id: userIdNum, packageRemaining: { gt: 0 } }, data: { packageRemaining: { decrement: 1 } } });
+                  if (upd && upd.count && upd.count > 0) {
+                    await prisma.searchLog.create({ data: { userId: userIdNum, query: norm } });
+                  } else {
+                    // no package remaining: do not log
+                  }
+                } else {
+                  await prisma.searchLog.create({ data: { userId: userIdNum, query: norm } });
+                }
               } catch (e) {
                 console.error('Erro ao gravar SearchLog durante import (após match):', e && e.stack ? e.stack : e);
               }

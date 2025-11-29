@@ -13,18 +13,29 @@ ncmRouter.use(ensureAuth);
 ncmRouter.get("/", async (req, res) => {
   try {
     const { q } = req.query;
+    // if client asks to skip logging (already shown), honor that early
+    const skipLog = String(req.query?.skipLog || '').toLowerCase() === 'true' || req.headers['x-skip-searchlog'] === '1';
     const userId = req.user?.id;
-
-    // If this is a search (q provided) and the user is not admin, enforce daily quota
-    if (q && req.user?.role !== 'admin') {
+    // If this is a search (q provided) and the user is not admin and logging is not skipped, enforce quota (daily or package)
+    if (q && req.user?.role !== 'admin' && !skipLog) {
       try {
-        const userRecord = await prisma.user.findUnique({ where: { id: userId }, select: { dailySearchLimit: true } });
-        const limit = userRecord?.dailySearchLimit ?? 100;
-        const startOfDay = new Date();
-        startOfDay.setHours(0,0,0,0);
-        const used = await prisma.searchLog.count({ where: { userId, createdAt: { gte: startOfDay } } });
-        if (used >= limit) {
-          return res.status(429).json({ error: 'Limite diário de buscas atingido', limit, used });
+        // fetch user quota fields once and reuse below
+        var userRecord = await prisma.user.findUnique({ where: { id: userId }, select: { dailySearchLimit: true, quotaType: true, packageRemaining: true, packageLimit: true } });
+        const quotaType = String(userRecord?.quotaType || 'DAILY').toUpperCase();
+        if (quotaType === 'PACKAGE') {
+          const remaining = Number(userRecord?.packageRemaining || 0);
+          const limit = Number(userRecord?.packageLimit || 0);
+          if (remaining <= 0) {
+            return res.status(429).json({ error: 'Limite de consultas por pacote esgotado', limit, remaining });
+          }
+        } else {
+          const limit = Number(userRecord?.dailySearchLimit ?? 100);
+          const startOfDay = new Date();
+          startOfDay.setHours(0,0,0,0);
+          const used = await prisma.searchLog.count({ where: { userId, createdAt: { gte: startOfDay } } });
+          if (used >= limit) {
+            return res.status(429).json({ error: 'Limite diário de buscas atingido', limit, used });
+          }
         }
       } catch (err) {
         console.error('Erro ao verificar cota de buscas', err);
@@ -73,16 +84,42 @@ ncmRouter.get("/", async (req, res) => {
       LIMIT 50;
     `;
 
+    // If this was a real search and logging isn't skipped, for PACKAGE quotas perform an atomic decrement synchronously
+    // so the client can be informed immediately. For DAILY quotas we keep the non-blocking async logging behavior.
+    if (q && req.user?.role !== 'admin' && !skipLog) {
+      try {
+        const userIdNum = Number(req.user.id);
+        if (userRecord && String(userRecord.quotaType).toUpperCase() === 'PACKAGE') {
+          // attempt to decrement packageRemaining atomically and create SearchLog synchronously if successful
+          const upd = await prisma.user.updateMany({ where: { id: userIdNum, packageRemaining: { gt: 0 } }, data: { packageRemaining: { decrement: 1 } } });
+          if (upd && upd.count && upd.count > 0) {
+            await prisma.searchLog.create({ data: { userId: userIdNum, query: String(q).trim() } });
+            // compute new remaining for header
+            const newRemaining = Math.max(0, Number(userRecord.packageRemaining || 0) - 1);
+            res.set('x-quota-remaining', String(newRemaining));
+          } else {
+            // no package remaining — nothing to log (should have been blocked earlier)
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao decrementar pacote/logar para cota PACKAGE:', err);
+      }
+    }
+
     res.json(items);
 
-    // Log the search (do not block response if logging fails)
-    // If client indicates skipLog, do not create SearchLog (prevents double-count when item already visible).
-    const skipLog = String(req.query?.skipLog || '').toLowerCase() === 'true' || req.headers['x-skip-searchlog'] === '1';
+    // Log the search for DAILY quotas (do not block response if logging fails)
     if (q && req.user?.role !== 'admin' && !skipLog) {
       (async () => {
         try {
           const qRaw = String(q).trim();
-          await prisma.searchLog.create({ data: { userId: Number(req.user.id), query: qRaw } });
+          const userIdNum = Number(req.user.id);
+          const u = await prisma.user.findUnique({ where: { id: userIdNum }, select: { quotaType: true } });
+          if (u && String(u.quotaType).toUpperCase() === 'PACKAGE') {
+            // already handled synchronously above
+          } else {
+            await prisma.searchLog.create({ data: { userId: userIdNum, query: qRaw } });
+          }
         } catch (err) {
           console.error('Erro ao gravar SearchLog', err);
         }

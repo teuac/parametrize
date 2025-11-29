@@ -123,13 +123,18 @@ export default function Import() {
         const duplicates = checkResp.data?.duplicates || [];
         const missing = checkResp.data?.missing || [];
         const uniqueCount = Number(checkResp.data?.uniqueCount || 0);
-        // fetch current quota
+        // fetch current quota (supports daily and package types)
         let remaining = null;
         try {
           const q = await api.get('/util/quota');
-          const used = q.data?.used || 0;
-          const limit = q.data?.limit || 0;
-          remaining = Math.max(0, limit - used);
+          const data = q.data || {};
+          // backend returns `remaining` for both daily and package modes
+          if (typeof data.remaining === 'number') remaining = data.remaining;
+          else {
+            const used = data.used || 0;
+            const limit = data.limit || 0;
+            remaining = Math.max(0, limit - used);
+          }
         } catch (e) {
           // if quota fetch fails, allow processing but do not limit
           remaining = null;

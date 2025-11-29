@@ -609,18 +609,34 @@ export default function Dashboard() {
       const params = { q: code };
       if (alreadyShown) params.skipLog = true;
 
-      const { data } = await api.get("/ncm", { params });
+      const resp = await api.get("/ncm", { params });
+      const data = resp.data;
+      const serverRemainingHeader = resp.headers && (resp.headers['x-quota-remaining'] || resp.headers['X-Quota-Remaining']);
       setQuotaMessage('');
       setQuotaModalOpen(false);
-      // decrement remaining locally (increment used) with animation only when we actually log the search
+      // decrement remaining locally (or update from server) with animation only when we actually log the search
       if (!params.skipLog) {
-        setQuota((prev) => {
-          if (!prev) return prev;
-          const used = Math.min(prev.limit || 0, (prev.used || 0) + 1);
-          return { ...prev, used };
-        });
-        setPulse(true);
-        setTimeout(() => setPulse(false), 300);
+        if (typeof serverRemainingHeader !== 'undefined') {
+          const serverRemaining = Number(serverRemainingHeader || 0);
+          setQuota((prev) => {
+            if (!prev) return prev;
+            const remaining = serverRemaining;
+            const used = (typeof prev.limit === 'number') ? (prev.limit - remaining) : ((prev.used || 0) + 1);
+            return { ...prev, remaining, used };
+          });
+          setPulse(true);
+          setTimeout(() => setPulse(false), 300);
+        } else {
+          setQuota((prev) => {
+            if (!prev) return prev;
+            const prevRemaining = typeof prev.remaining === 'number' ? prev.remaining : Math.max(0, (prev.limit || 0) - (prev.used || 0));
+            const remaining = Math.max(0, prevRemaining - 1);
+            const used = (typeof prev.limit === 'number') ? (prev.limit - remaining) : (Math.min(prev.limit || 0, (prev.used || 0) + 1));
+            return { ...prev, remaining, used };
+          });
+          setPulse(true);
+          setTimeout(() => setPulse(false), 300);
+        }
       }
       const pinnedItems = items.filter((i) => pinnedCodes.includes(i.codigo));
       // Show newly searched items first, then keep pinned items afterwards
@@ -632,8 +648,8 @@ export default function Dashboard() {
     } catch (err) {
       // Handle quota exceeded
       if (err?.response?.status === 429) {
-        const { used, limit, error } = err.response.data || {};
-        const msg = error || `Limite diário de buscas atingido (${used || 0}/${limit || '—'})`;
+        const body = err.response.data || {};
+        const msg = body.error || (body.remaining !== undefined ? `Limite de consultas por pacote esgotado (${body.remaining || 0}/${body.limit || '—'})` : `Limite de buscas atingido`);
         setQuotaMessage(msg);
         setQuotaModalOpen(true);
         return;
@@ -860,12 +876,11 @@ export default function Dashboard() {
               <QuotaBox>
                 {quota ? (
                   (() => {
-                    const used = quota.used || 0;
-                    const limit = quota.limit || 0;
-                    const remaining = Math.max(0, limit - used);
+                    const remaining = typeof quota.remaining === 'number' ? quota.remaining : Math.max(0, (quota.limit || 0) - (quota.used || 0));
+                    const title = quota && quota.type === 'package' ? 'consultas restantes (pacote):' : 'consultas restantes:';
                     return (
                       <>
-                        <QuotaTitle>consultas restantes:</QuotaTitle>
+                        <QuotaTitle>{title}</QuotaTitle>
                         <QuotaNumber pulse={pulse}>{remaining}</QuotaNumber>
                       </>
                     );

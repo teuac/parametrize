@@ -109,6 +109,8 @@ const ModalOverlay = styled.div`
 const ModalBox = styled.div`
   background: ${({ theme }) => theme.colors.surface};
   padding: 20px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
   border-radius: 10px;
   width: 100%;
   max-width: 520px;
@@ -161,7 +163,7 @@ export default function UsersCrud(){
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true, isBlocked: false, cpfCnpj: '', telefone: '', adesao: null, activeUpdatedAt: null, dailySearchLimit: 100 });
+  const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true, isBlocked: false, cpfCnpj: '', telefone: '', adesao: null, activeUpdatedAt: null, dailySearchLimit: 100, quotaType: 'DAILY', packageLimit: 0, packageRemaining: 0 });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
@@ -183,15 +185,21 @@ export default function UsersCrud(){
 
   useEffect(()=>{ fetchUsers() }, []);
 
-  const openNew = () => { setEditing(null); setForm({ name:'', email:'', password:'', role:'user', active: true, isBlocked: false, cpfCnpj: '', telefone: '', dailySearchLimit: 100 }); setModalOpen(true) };
-  const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role, active: u.active ?? true, isBlocked: u.isBlocked ?? u.blocked ?? false, cpfCnpj: u.cpfCnpj ?? '', telefone: u.telefone ?? '', adesao: u.adesao, activeUpdatedAt: u.activeUpdatedAt, dailySearchLimit: u.dailySearchLimit ?? 100 }); setModalOpen(true) };
+  const openNew = () => { setEditing(null); setForm({ name:'', email:'', password:'', role:'user', active: true, isBlocked: false, cpfCnpj: '', telefone: '', dailySearchLimit: 100, quotaType: 'DAILY', packageLimit: 0, packageRemaining: 0 }); setModalOpen(true) };
+  const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role, active: u.active ?? true, isBlocked: u.isBlocked ?? u.blocked ?? false, cpfCnpj: u.cpfCnpj ?? '', telefone: u.telefone ?? '', adesao: u.adesao, activeUpdatedAt: u.activeUpdatedAt, dailySearchLimit: u.dailySearchLimit ?? 100, quotaType: u.quotaType || 'DAILY', packageLimit: u.packageLimit || 0, packageRemaining: u.packageRemaining || 0 }); setModalOpen(true) };
 
   const save = async () => {
     try{
+      const payloadBase = { name: form.name, email: form.email, ...(form.password?{password:form.password}:{}), role: form.role, active: form.active, isBlocked: Boolean(form.isBlocked), cpfCnpj: form.cpfCnpj, telefone: form.telefone, dailySearchLimit: Number(form.dailySearchLimit || 0), quotaType: form.quotaType || 'DAILY' };
+      if (form.quotaType === 'PACKAGE') {
+        payloadBase.packageLimit = Number(form.packageLimit || 0);
+        payloadBase.packageRemaining = Number(form.packageRemaining || form.packageLimit || 0);
+      }
+
       if(editing){
-        await api.put(`/users/${editing.id}`, { name: form.name, email: form.email, ...(form.password?{password:form.password}:{}), role: form.role, active: form.active, isBlocked: Boolean(form.isBlocked), cpfCnpj: form.cpfCnpj, telefone: form.telefone, dailySearchLimit: Number(form.dailySearchLimit || 0) });
+        await api.put(`/users/${editing.id}`, payloadBase);
       }else{
-        await api.post('/users', { ...form, dailySearchLimit: Number(form.dailySearchLimit || 0) });
+        await api.post('/users', payloadBase);
       }
       setModalOpen(false);
       fetchUsers();
@@ -251,7 +259,7 @@ export default function UsersCrud(){
                 <Th>E-mail</Th>
                 <Th>CPF/CNPJ</Th>
                 <Th>Telefone</Th>
-                <Th>Limite buscas/dia</Th>
+                <Th>Tipo cota / Limite</Th>
                 <Th>Buscas restantes</Th>
                 <Th>Role</Th>
                 <Th>Status</Th>
@@ -282,8 +290,11 @@ export default function UsersCrud(){
                   <Td>{u.email}</Td>
                   <Td>{u.cpfCnpj || '-'}</Td>
                   <Td>{u.telefone || '-'}</Td>
-                  <Td>{typeof u.dailySearchLimit !== 'undefined' ? u.dailySearchLimit : '-'}</Td>
+                  <Td>{u.quotaType === 'PACKAGE' ? `Pacote ${u.packageLimit || 0}` : (typeof u.dailySearchLimit !== 'undefined' ? `Diário ${u.dailySearchLimit}` : '-')}</Td>
                   <Td>{(() => {
+                    if (u.quotaType === 'PACKAGE') {
+                      return String(Number(u.packageRemaining || 0));
+                    }
                     const limit = Number(u.dailySearchLimit ?? 0);
                     const used = Number(usageMap[String(u.id)] || 0);
                     const remaining = limit - used;
@@ -303,7 +314,7 @@ export default function UsersCrud(){
               ))}
               {users.filter(u => !search || (u.email || '').toLowerCase().includes(search.toLowerCase())).length === 0 && (
                 <tr>
-                  <Td colSpan={9} style={{ padding: 18, textAlign: 'center', color: '#888' }}>Nenhum usuário encontrado</Td>
+                  <Td colSpan={11} style={{ padding: 18, textAlign: 'center', color: '#888' }}>Nenhum usuário encontrado</Td>
                 </tr>
               )}
             </tbody>
@@ -343,9 +354,30 @@ export default function UsersCrud(){
               <Input value={form.telefone || ''} onChange={e=>setForm({...form, telefone: e.target.value})} />
             </Field>
             <Field>
-              <label>Limite de buscas diárias</label>
-              <Input type="number" min={0} value={form.dailySearchLimit ?? 0} onChange={e=>setForm({...form, dailySearchLimit: e.target.value})} />
+              <label>Tipo de cota</label>
+              <Select value={form.quotaType || 'DAILY'} onChange={e => setForm({ ...form, quotaType: e.target.value })}>
+                <option value="DAILY">Diária</option>
+                <option value="PACKAGE">Pacote</option>
+              </Select>
             </Field>
+            {form.quotaType === 'DAILY' && (
+              <Field>
+                <label>Limite de buscas diárias</label>
+                <Input type="number" min={0} value={form.dailySearchLimit ?? 0} onChange={e=>setForm({...form, dailySearchLimit: Number(e.target.value || 0)})} />
+              </Field>
+            )}
+            {form.quotaType === 'PACKAGE' && (
+              <>
+                <Field>
+                  <label>Tamanho do pacote (limite)</label>
+                  <Input type="number" min={0} value={form.packageLimit ?? 0} onChange={e => setForm({ ...form, packageLimit: Number(e.target.value || 0) })} />
+                </Field>
+                <Field>
+                  <label>Consultas restantes no pacote</label>
+                  <Input type="number" min={0} value={form.packageRemaining ?? 0} onChange={e => setForm({ ...form, packageRemaining: Number(e.target.value || 0) })} />
+                </Field>
+              </>
+            )}
             <Field>
               <label>Status</label>
               <Select

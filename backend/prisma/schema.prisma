@@ -12,6 +12,11 @@ enum Role {
   user
 }
 
+enum QuotaType {
+  DAILY
+  PACKAGE
+}
+
 model User {
   id         Int      @id @default(autoincrement())
   name       String
@@ -25,6 +30,10 @@ model User {
   telefone   String?
   activeUpdatedAt DateTime?
   dailySearchLimit Int    @default(100)
+  // New package-based quota fields
+  quotaType QuotaType     @default(DAILY)
+  packageLimit Int?       @default(0)
+  packageRemaining Int?   @default(0)
   searches   SearchLog[]
   supportTickets SupportTicket[]
   createdAt  DateTime @default(now())

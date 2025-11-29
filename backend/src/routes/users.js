@@ -10,7 +10,7 @@ export const usersRouter = Router();
 usersRouter.use(ensureAuth, ensureAdmin);
 
 usersRouter.get('/', async (_, res) => {
-  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, active: true, blocked: true, createdAt: true, cpfCnpj: true, adesao: true, telefone: true, activeUpdatedAt: true, dailySearchLimit: true } });
+  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, active: true, blocked: true, createdAt: true, cpfCnpj: true, adesao: true, telefone: true, activeUpdatedAt: true, dailySearchLimit: true, quotaType: true, packageLimit: true, packageRemaining: true } });
   // expose legacy `blocked` and the new `isBlocked` alias in the API
   const out = users.map(u => ({ ...u, isBlocked: u.blocked }));
   res.json(out);
@@ -18,12 +18,14 @@ usersRouter.get('/', async (_, res) => {
 
 usersRouter.post('/', async (req, res) => {
   // accept both `blocked` and `isBlocked` from the client for compatibility
-  const { name, email, password, role = Role.user, active = true, blocked = false, isBlocked, cpfCnpj, telefone, dailySearchLimit = 100 } = req.body;
+  const { name, email, password, role = Role.user, active = true, blocked = false, isBlocked, cpfCnpj, telefone, dailySearchLimit = 100, quotaType = 'DAILY', packageLimit = 0, packageRemaining } = req.body;
   const finalBlocked = typeof isBlocked !== 'undefined' ? Boolean(isBlocked) : Boolean(blocked);
   const plainPassword = password; // keep plain password to include in email
   const hash = await bcrypt.hash(password, 10);
   // adesao will be set by Prisma default(now())
-  const user = await prisma.user.create({ data: { name, email, password: hash, role, active, blocked: finalBlocked, cpfCnpj, telefone, activeUpdatedAt: active ? new Date() : null, dailySearchLimit } });
+  // if packageRemaining not provided but packageLimit is, initialize remaining to packageLimit
+  const pkgRem = typeof packageRemaining !== 'undefined' ? Number(packageRemaining) : (Number(packageLimit) || 0);
+  const user = await prisma.user.create({ data: { name, email, password: hash, role, active, blocked: finalBlocked, cpfCnpj, telefone, activeUpdatedAt: active ? new Date() : null, dailySearchLimit, quotaType, packageLimit: Number(packageLimit || 0), packageRemaining: pkgRem } });
 
   // Try to send welcome email with access data. Do not block user creation on email failure.
   (async () => {
@@ -76,6 +78,17 @@ usersRouter.put('/:id', async (req, res) => {
     incoming.blocked = Boolean(incoming.isBlocked);
     delete incoming.isBlocked;
   }
+
+  // handle quota fields: ensure numeric types and initialize packageRemaining when packageLimit provided but remaining not
+  if (typeof incoming.packageLimit !== 'undefined') {
+    incoming.packageLimit = Number(incoming.packageLimit || 0);
+    if (typeof incoming.packageRemaining === 'undefined') {
+      incoming.packageRemaining = incoming.packageLimit;
+    } else {
+      incoming.packageRemaining = Number(incoming.packageRemaining || 0);
+    }
+  }
+  if (typeof incoming.dailySearchLimit !== 'undefined') incoming.dailySearchLimit = Number(incoming.dailySearchLimit || 0);
 
   await prisma.user.update({ where: { id }, data: incoming });
   res.json({ ok: true });
