@@ -293,7 +293,9 @@ if (!ncmList.length) {
   // not enough space on the current page, start a new page so the footer does
   // not overlap the table.
   try {
-    const footerText = `Gerado em: ${new Date().toLocaleString()}`;
+    const now = new Date();
+    const brDT = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    const footerText = `Gerado em: ${brDT.format(now)}`;
     const footerPadding = 12; // space after the table
     let footerY = y + footerPadding;
     // Use the same bottom safety margin used for row wrapping earlier
@@ -311,7 +313,9 @@ if (!ncmList.length) {
   } catch (e) {
     // fallback: try simple text at current position
     try {
-      doc.fontSize(8).fillColor("#666").text(`Gerado em: ${new Date().toLocaleString()}`, { align: 'right' });
+      const now = new Date();
+      const brDT = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+      doc.fontSize(8).fillColor("#666").text(`Gerado em: ${brDT.format(now)}`, { align: 'right' });
     } catch (err) {}
   }
 
@@ -609,9 +613,15 @@ if (!ncmList.length) {
         }
       }
 
-      // footer with generation date
+      // footer with generation date (format pt-BR)
       txt += "\n";
-      txt += `Gerado em: ${new Date().toLocaleString()}\n`;
+      try {
+        const now = new Date();
+        const brDT = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+        txt += `Gerado em: ${brDT.format(now)}\n`;
+      } catch (e) {
+        txt += `Gerado em: ${new Date().toLocaleString()}\n`;
+      }
 
       res.setHeader("Content-Disposition", 'attachment; filename="relatorio_ncm.txt"');
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
