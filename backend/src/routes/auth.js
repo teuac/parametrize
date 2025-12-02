@@ -4,6 +4,12 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
 import { fileURLToPath } from 'url';
+import path from 'path';
+import fs from 'fs';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const prisma = new PrismaClient();
 
 export const authRouter = Router();
@@ -46,7 +52,7 @@ authRouter.post('/forgot', async (req, res) => {
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     // sanitize FRONTEND_URL: remove trailing slash and accidental '/login' suffix
-    const rawFrontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    const rawFrontend = (process.env.FRONTEND_URL || 'https://www.app.parametrize.cloud').replace(/\/+$/, '');
     const frontendUrl = rawFrontend.replace(/\/login$/i, '');
     const resetLink = `${frontendUrl}/recover/reset?token=${encodeURIComponent(token)}`;
 
@@ -60,13 +66,67 @@ authRouter.post('/forgot', async (req, res) => {
 
     const from = process.env.EMAIL_FROM || 'no-reply@parametrize.com';
 
+    // Read logo if available
+    let attachments = [];
+    try {
+      const logoPath = path.resolve(__dirname, '..', 'utils', 'logo.png');
+      console.log('[EMAIL] Logo path:', logoPath);
+      console.log('[EMAIL] Logo exists:', fs.existsSync(logoPath));
+      if (fs.existsSync(logoPath)) {
+        const logoBuffer = fs.readFileSync(logoPath);
+        console.log('[EMAIL] Logo buffer size:', logoBuffer.length, 'bytes');
+        attachments.push({ filename: 'logo.png', content: logoBuffer, cid: 'logo' });
+      } else {
+        console.log('[EMAIL] Logo file not found at:', logoPath);
+      }
+    } catch (e) {
+      console.error('[EMAIL] Error reading logo:', e?.message || e);
+    }
+    console.log('[EMAIL] Attachments count:', attachments.length);
+
     const html = `
-      <p>Você solicitou a recuperação de senha. Clique no link abaixo para criar uma nova senha (válido 1 hora):</p>
-      <p><a href="${resetLink}">Redefinir senha</a></p>
-      <p>Se você não solicitou, ignore esta mensagem.</p>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; background-color: #0b0b0b; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 20px auto; background: #0b0b0b; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 1px solid #333; }
+          .header { background: #a8892a; color: #0b0b0b; padding: 8px 24px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; font-weight: 700; }
+          .header img { max-width: 32px; height: auto; margin: 0; display: inline-block; vertical-align: middle; }
+          .content { padding: 32px 24px; color: #ffffff; line-height: 1.6; }
+          .button { display: inline-block; margin: 20px 0; padding: 14px 28px; background: #a8892a; color: #0b0b0b; text-decoration: none; border-radius: 6px; font-weight: 600; }
+          .footer { background: #1a1a1a; padding: 20px 24px; text-align: center; font-size: 12px; color: #cccccc; border-top: 1px solid #333; }
+          .footer strong { color: #a8892a; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            ${attachments.length ? '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center"><img src="cid:logo" alt="Parametrize" width="160" style="width: 160px !important; max-width: 160px !important; height: auto; display: block;" /></td></tr></table>' : '<h1>Parametrize</h1>'}
+            <p style="margin: 8px 0 0 0; font-size: 14px;">Soluções Fiscais</p>
+          </div>
+          <div class="content">
+            <h2 style="color: #a8892a; margin-top: 0;">Recuperação de Senha</h2>
+            <p>Olá,</p>
+            <p>Você solicitou a recuperação de senha. Clique no botão abaixo para criar uma nova senha (válido por 1 hora):</p>
+            <div style="text-align: center;">
+              <a href="${resetLink}" class="button">Redefinir Senha</a>
+            </div>
+            <p style="font-size: 13px; color: #666;">Ou copie e cole este link no navegador:<br/><a href="${resetLink}" style="color: #a8892a; word-break: break-all;">${resetLink}</a></p>
+            <p>Se você não solicitou esta recuperação, ignore esta mensagem. Sua senha permanecerá inalterada.</p>
+          </div>
+          <div class="footer">
+            <strong>Parametrize</strong> — Soluções Fiscais<br/>
+            Este é um e-mail automático. Por favor, não responda.
+          </div>
+        </div>
+      </body>
+      </html>
     `;
 
-    await transporter.sendMail({ from, to: user.email, subject: 'Recuperação de senha', html });
+    await transporter.sendMail({ from, to: user.email, subject: 'Recuperação de senha - Parametrize', html, attachments });
   } catch (err) {
     console.error('Error sending forgot email', err);
     // Do not reveal error to client

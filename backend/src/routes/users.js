@@ -3,6 +3,8 @@ import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { ensureAuth, ensureAdmin } from '../middlewares/auth.js';
+import path from 'path';
+import fs from 'fs';
 
 const prisma = new PrismaClient();
 export const usersRouter = Router();
@@ -27,37 +29,101 @@ usersRouter.post('/', async (req, res) => {
   const pkgRem = typeof packageRemaining !== 'undefined' ? Number(packageRemaining) : (Number(packageLimit) || 0);
   const user = await prisma.user.create({ data: { name, email, password: hash, role, active, blocked: finalBlocked, cpfCnpj, telefone, activeUpdatedAt: active ? new Date() : null, dailySearchLimit, quotaType, packageLimit: Number(packageLimit || 0), packageRemaining: pkgRem } });
 
-  // Try to send welcome email with access data. Do not block user creation on email failure.
-  (async () => {
+  // Send welcome email with access data. Await to ensure it's sent before responding (like other email endpoints).
+  try {
+    console.log('[EMAIL] Attempting to send welcome email to:', user.email);
+    
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+    });
+
+    const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@parametrize.com';
+    // sanitize FRONTEND_URL to avoid embedding unintended subpaths (like /login)
+    const rawFrontend = (process.env.FRONTEND_URL || 'https://www.app.parametrize.cloud').replace(/\/+$/, '');
+    const frontendUrl = rawFrontend.replace(/\/login$/i, '') || 'https://www.app.parametrize.cloud';
+
+    // Read logo if available
+    let attachments = [];
     try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
-      });
-
-      const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@parametrize.com';
-      // sanitize FRONTEND_URL to avoid embedding unintended subpaths (like /login)
-      const rawFrontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
-      const frontendUrl = rawFrontend.replace(/\/login$/i, '') || 'http://localhost:5173';
-
-      const html = `
-        <p>Olá ${user.name || ''},</p>
-        <p>Bem-vindo(a) ao sistema. Seus dados de acesso são:</p>
-        <ul>
-          <li><strong>E-mail:</strong> ${user.email}</li>
-          <li><strong>Senha:</strong> ${plainPassword || '(definida)'}</li>
-        </ul>
-        <p>Você pode acessar a plataforma em <a href="${frontendUrl}">${frontendUrl}</a></p>
-        <p>Se você não esperava este e-mail, ignore-o.</p>
-      `;
-
-      await transporter.sendMail({ from, to: user.email, subject: 'Bem-vindo(a) - Acesso à plataforma', html });
-    } catch (err) {
-      console.error('Error sending welcome email', err);
+      const logoPath = path.resolve(process.cwd(), 'src', 'utils', 'logo.png');
+      console.log('[EMAIL] Logo path:', logoPath);
+      console.log('[EMAIL] Logo exists:', fs.existsSync(logoPath));
+      if (fs.existsSync(logoPath)) {
+        const logoBuffer = fs.readFileSync(logoPath);
+        console.log('[EMAIL] Logo buffer size:', logoBuffer.length, 'bytes');
+        attachments.push({ filename: 'logo.png', content: logoBuffer, cid: 'logo' });
+      } else {
+        console.log('[EMAIL] Logo file not found at:', logoPath);
+      }
+    } catch (e) {
+      console.error('[EMAIL] Error reading logo:', e?.message || e);
     }
-  })();
+    console.log('[EMAIL] Attachments count:', attachments.length);
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; background-color: #0b0b0b; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 20px auto; background: #0b0b0b; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 1px solid #333; }
+          .header { background: #a8892a; color: #0b0b0b; padding: 8px 24px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; font-weight: 700; }
+          .header img { max-width: 32px; height: auto; margin: 0; display: inline-block; vertical-align: middle; }
+          .content { padding: 32px 24px; color: #ffffff; line-height: 1.6; }
+          .credentials { background: #1a1a1a; border-left: 4px solid #a8892a; padding: 16px; margin: 20px 0; border-radius: 4px; }
+          .button { display: inline-block; margin: 20px 0; padding: 14px 28px; background: #a8892a; color: #0b0b0b; text-decoration: none; border-radius: 6px; font-weight: 600; }
+          .footer { background: #1a1a1a; padding: 20px 24px; text-align: center; font-size: 12px; color: #cccccc; border-top: 1px solid #333; }
+          .footer strong { color: #a8892a; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            ${attachments.length ? '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center"><img src="cid:logo" alt="Parametrize" width="160" style="width: 160px !important; max-width: 160px !important; height: auto; display: block;" /></td></tr></table>' : '<h1>Parametrize</h1>'}
+            <p style="margin: 8px 0 0 0; font-size: 14px;">Soluções Fiscais</p>
+          </div>
+          <div class="content">
+            <h2 style="color: #a8892a; margin-top: 0;">Bem-vindo(a) à Plataforma!</h2>
+            <p>Olá <strong>${user.name || ''}</strong>,</p>
+            <p>Sua conta foi criada com sucesso. Utilize os dados abaixo para acessar a plataforma:</p>
+            <div class="credentials">
+              <p style="margin: 8px 0;"><strong>E-mail:</strong> ${user.email}</p>
+              <p style="margin: 8px 0;"><strong>Senha:</strong> ${plainPassword || '(definida)'}</p>
+            </div>
+            <p>Clique no botão abaixo para acessar:</p>
+            <div style="text-align: center;">
+              <a href="${frontendUrl}" class="button">Acessar Plataforma</a>
+            </div>
+            <p style="font-size: 13px; color: #666;">Ou acesse diretamente: <a href="${frontendUrl}" style="color: #a8892a;">${frontendUrl}</a></p>
+            <p>Recomendamos que você altere sua senha no primeiro acesso.</p>
+          </div>
+          <div class="footer">
+            <strong>Parametrize</strong> — Soluções Fiscais<br/>
+            Este é um e-mail automático. Por favor, não responda.
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await transporter.sendMail({ from, to: user.email, subject: 'Bem-vindo(a) - Acesso à Plataforma Parametrize', html, attachments });
+    console.log('[EMAIL] Welcome email sent successfully to:', user.email);
+  } catch (err) {
+    console.error('[EMAIL] ❌ Error sending welcome email to', user.email);
+    console.error('[EMAIL] Error details:', {
+      message: err.message,
+      code: err.code,
+      command: err.command,
+      response: err.response,
+      responseCode: err.responseCode
+    });
+    // Don't block user creation on email failure, just log the error
+  }
 
   res.status(201).json({ id: user.id });
 });

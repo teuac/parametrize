@@ -66,35 +66,92 @@ supportRouter.post('/', async (req, res) => {
 
     // send confirmation email to user
     const userHtml = `
-      <div style="font-family: Arial, sans-serif; color: #222">
-        ${attachments.length ? '<div><img src="cid:logo" style="width:120px;"/></div>' : ''}
-        <div style="font-weight:700; margin-top:6px;">Parametrize Solucoes Fiscais</div>
-        <p>Recebemos sua dúvida. Seu protocolo é <strong>${protocol}</strong>.</p>
-        <p>Em breve nossa equipe retornará para o e-mail informado.</p>
-        <hr />
-        <p><strong>Mensagem enviada:</strong></p>
-        <div style="white-space: pre-wrap;">${message}</div>
-      </div>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; background-color: #0b0b0b; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 20px auto; background: #0b0b0b; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 1px solid #333; }
+          .header { background: #a8892a; color: #0b0b0b; padding: 8px 24px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; font-weight: 700; }
+          .header img { max-width: 160px; height: auto; margin: 0; display: inline-block; vertical-align: middle; }
+          .content { padding: 32px 24px; color: #ffffff; line-height: 1.6; }
+          .protocol { background: #1a1a1a; border-left: 4px solid #a8892a; padding: 16px; margin: 20px 0; border-radius: 4px; font-size: 16px; font-weight: 600; color: #a8892a; }
+          .message-box { background: #1a1a1a; padding: 16px; margin: 20px 0; border-radius: 4px; white-space: pre-wrap; font-size: 14px; color: #cccccc; border: 1px solid #333; }
+          .footer { background: #1a1a1a; padding: 20px 24px; text-align: center; font-size: 12px; color: #cccccc; border-top: 1px solid #333; }
+          .footer strong { color: #a8892a; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            ${attachments.length ? '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center"><img src="cid:logo" alt="Parametrize" width="160" style="width: 160px !important; max-width: 160px !important; height: auto; display: block;" /></td></tr></table>' : '<h1>Parametrize</h1>'}
+            <p style="margin: 8px 0 0 0; font-size: 14px;">Soluções Fiscais</p>
+          </div>
+          <div class="content">
+            <h2 style="color: #a8892a; margin-top: 0;">Confirmação de Recebimento</h2>
+            <p>Olá,</p>
+            <p>Recebemos sua dúvida com sucesso. Anote o número do seu protocolo:</p>
+            <div class="protocol">Protocolo: ${protocol}</div>
+            <p>Em breve nossa equipe retornará para o e-mail informado. Agradecemos pelo contato!</p>
+            <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 24px 0;" />
+            <p><strong>Sua mensagem:</strong></p>
+            <div class="message-box">${message}</div>
+          </div>
+          <div class="footer">
+            <strong>Parametrize</strong> — Soluções Fiscais<br/>
+            Dúvidas? Entre em contato conosco.
+          </div>
+        </div>
+      </body>
+      </html>
     `;
 
     await transporter.sendMail({
       from,
       to: email,
-      subject: `Confirmação de recebimento - Protocolo ${protocol}`,
+      subject: `Confirmação de Recebimento - Protocolo ${protocol} - Parametrize`,
       html: userHtml,
       attachments,
     });
 
     // notify support inbox
     const supportHtml = `
-      <p>Nova dúvida recebida:</p>
-      <p><strong>Protocolo:</strong> ${protocol}</p>
-      <p><strong>De:</strong> ${email} ${userId ? `(userId: ${userId})` : ''}</p>
-      <p><strong>Mensagem:</strong></p>
-      <div style="white-space: pre-wrap;">${message}</div>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; background-color: #0b0b0b; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 20px auto; background: #0b0b0b; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 1px solid #333; }
+          .header { background: #a8892a; color: #0b0b0b; padding: 20px 24px; }
+          .header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+          .content { padding: 24px; color: #ffffff; line-height: 1.6; }
+          .info { background: #1a1a1a; padding: 12px; margin: 12px 0; border-radius: 4px; border-left: 4px solid #a8892a; }
+          .message-box { background: #1a1a1a; padding: 16px; margin: 16px 0; border-radius: 4px; white-space: pre-wrap; font-size: 14px; color: #cccccc; border: 1px solid #333; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🔔 Nova Dúvida Recebida</h1>
+          </div>
+          <div class="content">
+            <div class="info">
+              <p style="margin: 4px 0;"><strong>Protocolo:</strong> ${protocol}</p>
+              <p style="margin: 4px 0;"><strong>De:</strong> ${email} ${userId ? `(userId: ${userId})` : ''}</p>
+            </div>
+            <p><strong>Mensagem:</strong></p>
+            <div class="message-box">${message}</div>
+            <p style="font-size: 12px; color: #666; margin-top: 20px;">Responda diretamente para o e-mail do usuário: <a href="mailto:${email}" style="color: #a8892a;">${email}</a></p>
+          </div>
+        </div>
+      </body>
+      </html>
     `;
 
-    await transporter.sendMail({ from, to: supportTo, subject: `Nova dúvida - ${protocol}`, html: supportHtml, replyTo: email });
+    await transporter.sendMail({ from, to: supportTo, subject: `Nova Dúvida - ${protocol} - Parametrize`, html: supportHtml, replyTo: email });
 
     return res.json({ ok: true, protocol });
   } catch (err) {
