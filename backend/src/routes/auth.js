@@ -45,7 +45,9 @@ authRouter.post('/forgot', async (req, res) => {
     // create a short-lived token for password reset
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    // sanitize FRONTEND_URL: remove trailing slash and accidental '/login' suffix
+    const rawFrontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    const frontendUrl = rawFrontend.replace(/\/login$/i, '');
     const resetLink = `${frontendUrl}/recover/reset?token=${encodeURIComponent(token)}`;
 
     // configure nodemailer transport using env vars

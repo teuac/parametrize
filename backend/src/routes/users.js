@@ -38,7 +38,9 @@ usersRouter.post('/', async (req, res) => {
       });
 
       const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@parametrize.com';
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      // sanitize FRONTEND_URL to avoid embedding unintended subpaths (like /login)
+      const rawFrontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
+      const frontendUrl = rawFrontend.replace(/\/login$/i, '') || 'http://localhost:5173';
 
       const html = `
         <p>Olá ${user.name || ''},</p>
