@@ -61,9 +61,32 @@ const Td = styled.td`
   border-bottom: 1px solid #f0f0f0;
 `;
 
+const SmallButton = styled(Button)`
+  padding: 6px 8px;
+  font-size: 0.9rem;
+  min-width: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const RealceLabel = styled.div`
+  color: #a8892a;
+  font-size: 13px;
+  min-width: 90px;
+  text-align: center;
+  font-weight: 700;
+`;
+
+const RealcePercent = styled.span`
+  margin-left: 6px;
+  font-size: 14px;
+  font-weight: 800;
+`;
+
 const Highlight = styled.tr`
-  background: rgba(168,137,42,0.22);
-  box-shadow: inset 6px 0 0 0 rgba(168,137,42,0.32);
+  background: ${p => `rgba(168,137,42,${p.intensity})`} ;
+  box-shadow: ${p => `inset 6px 0 0 0 rgba(168,137,42,${Math.min(0.95, p.intensity + 0.12)})`} ;
   transition: background 160ms ease, box-shadow 160ms ease;
 `;
 
@@ -74,6 +97,7 @@ export default function TabelaNcm() {
   const [field, setField] = useState('codigo');
   const [matches, setMatches] = useState([]);
   const [currentMatchIdx, setCurrentMatchIdx] = useState(-1);
+  const [highlightIntensity, setHighlightIntensity] = useState(0.22);
   const [windowStart, setWindowStart] = useState(0);
   const pageSize = 21; // rows to show around the found item (odd so item can be centered)
   const tableRef = useRef(null);
@@ -194,6 +218,11 @@ export default function TabelaNcm() {
             <Button onClick={() => goToMatch(1)} disabled={!matches.length}>▶</Button>
           </div>
           <Button onClick={() => { setWindowStart(0); setQuery(''); setMatches([]); setCurrentMatchIdx(-1); setMessage(null); }}>Voltar ao topo</Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
+            <RealceLabel>Realce:<RealcePercent>{(highlightIntensity * 100).toFixed(0)}%</RealcePercent></RealceLabel>
+            <SmallButton onClick={() => setHighlightIntensity(i => Math.min(0.95, +(i + 0.08).toFixed(3)))}>+</SmallButton>
+            <SmallButton onClick={() => setHighlightIntensity(i => Math.max(0.05, +(i - 0.08).toFixed(3)))}>−</SmallButton>
+          </div>
           {message && <div style={{ color: '#a8892a', marginLeft: 12 }}>{message}</div>}
         </SearchRow>
 
@@ -232,12 +261,19 @@ export default function TabelaNcm() {
                     const fieldVal = getFieldValue(r);
                     const vnorm = field === 'codigo' ? normalizeCode(fieldVal) : normalizeText(fieldVal);
                     const isTarget = matches.length && matches[currentMatchIdx] === globalIndex;
-                    const RowTag = isTarget ? Highlight : 'tr';
+                    if (isTarget) {
+                      return (
+                        <Highlight key={globalIndex} intensity={highlightIntensity} ref={targetRef}>
+                          <Td>{String(r.codigo || '').trim()}</Td>
+                          <Td style={{ paddingLeft: '12px', whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.descricao || r['descricao do produto'] || r['descricao_produto'] || r['descricao_completa'] || ''}</Td>
+                        </Highlight>
+                      );
+                    }
                     return (
-                      <RowTag key={globalIndex} ref={isTarget ? targetRef : null}>
+                      <tr key={globalIndex}>
                         <Td>{String(r.codigo || '').trim()}</Td>
                         <Td style={{ paddingLeft: '12px', whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.descricao || r['descricao do produto'] || r['descricao_produto'] || r['descricao_completa'] || ''}</Td>
-                      </RowTag>
+                      </tr>
                     );
                   })}
                 </tbody>

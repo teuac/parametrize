@@ -61,9 +61,32 @@ const Td = styled.td`
 `;
 
 const Highlight = styled.tr`
-  background: rgba(168,137,42,0.22);
-  box-shadow: inset 6px 0 0 0 rgba(168,137,42,0.32);
+  background: ${p => `rgba(168,137,42,${p.intensity})`} ;
+  box-shadow: ${p => `inset 6px 0 0 0 rgba(168,137,42,${Math.min(0.95, p.intensity + 0.12)})`} ;
   transition: background 160ms ease, box-shadow 160ms ease;
+`;
+
+const SmallButton = styled(Button)`
+  padding: 6px 8px;
+  font-size: 0.9rem;
+  min-width: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const RealceLabel = styled.div`
+  color: #a8892a;
+  font-size: 13px;
+  min-width: 90px;
+  text-align: center;
+  font-weight: 700;
+`;
+
+const RealcePercent = styled.span`
+  margin-left: 6px;
+  font-size: 14px;
+  font-weight: 800;
 `;
 
 export default function TabelaNbs() {
@@ -73,6 +96,7 @@ export default function TabelaNbs() {
   const [field, setField] = useState('item_lc_116');
   const [matches, setMatches] = useState([]);
   const [currentMatchIdx, setCurrentMatchIdx] = useState(-1);
+  const [highlightIntensity, setHighlightIntensity] = useState(0.22);
   const [windowStart, setWindowStart] = useState(0);
   const pageSize = 21;
   const tableRef = useRef(null);
@@ -223,6 +247,11 @@ export default function TabelaNbs() {
             <Button onClick={() => goToMatch(1)} disabled={!matches.length}>▶</Button>
           </div>
           <Button onClick={() => { setWindowStart(0); setQuery(''); setMatches([]); setCurrentMatchIdx(-1); setMessage(null); }}>Voltar ao topo</Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
+            <RealceLabel>Realce:<RealcePercent>{(highlightIntensity * 100).toFixed(0)}%</RealcePercent></RealceLabel>
+            <SmallButton onClick={() => setHighlightIntensity(i => Math.min(0.95, +(i + 0.08).toFixed(3)))}>+</SmallButton>
+            <SmallButton onClick={() => setHighlightIntensity(i => Math.max(0.05, +(i - 0.08).toFixed(3)))}>−</SmallButton>
+          </div>
           {message && <div style={{ color: '#a8892a', marginLeft: 12 }}>{message}</div>}
         </SearchRow>
 
@@ -264,14 +293,23 @@ export default function TabelaNbs() {
 
                     const fieldVal = String(getFieldValue(r, field) || '');
                     const isTarget = matches.length && matches[currentMatchIdx] === globalIndex;
-                    const RowTag = isTarget ? Highlight : 'tr';
+                    if (isTarget) {
+                      return (
+                        <Highlight key={globalIndex} intensity={highlightIntensity} ref={targetRef}>
+                          <Td>{r.item_lc_116}</Td>
+                          <Td style={{ paddingLeft: '24px' }}>{r.descricao_item || r['descricao item'] || ''}</Td>
+                          <Td>{r.nbs}</Td>
+                          <Td style={{ paddingLeft: '24px' }}>{r.descricao_nbs || r['descricao nbs'] || ''}</Td>
+                        </Highlight>
+                      );
+                    }
                     return (
-                      <RowTag key={globalIndex} ref={isTarget ? targetRef : null}>
+                      <tr key={globalIndex}>
                         <Td>{r.item_lc_116}</Td>
                         <Td style={{ paddingLeft: '24px' }}>{r.descricao_item || r['descricao item'] || ''}</Td>
                         <Td>{r.nbs}</Td>
                         <Td style={{ paddingLeft: '24px' }}>{r.descricao_nbs || r['descricao nbs'] || ''}</Td>
-                      </RowTag>
+                      </tr>
                     );
                   })}
                 </tbody>
