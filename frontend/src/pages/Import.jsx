@@ -63,6 +63,7 @@ export default function Import() {
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
   const [duplicateSamples, setDuplicateSamples] = useState([]);
   const [missingSamples, setMissingSamples] = useState([]);
+  const [missingModalOpen, setMissingModalOpen] = useState(false);
   const [pendingBase64, setPendingBase64] = useState(null);
   const [pendingUniqueCount, setPendingUniqueCount] = useState(null);
   const [pendingRemaining, setPendingRemaining] = useState(null);
@@ -140,7 +141,7 @@ export default function Import() {
           remaining = null;
         }
 
-        // If there are duplicates OR uniqueCount exceeds remaining quota (when known), show modal
+        // If there are duplicates OR missing OR uniqueCount exceeds remaining quota (when known), decide which modal to show first
         const needModal = (duplicates.length > 0) || (missing.length > 0) || (remaining !== null && uniqueCount > remaining);
         if (needModal) {
           setDuplicateSamples(duplicates.slice(0, 20));
@@ -148,7 +149,15 @@ export default function Import() {
           setPendingBase64(base64);
           setPendingUniqueCount(uniqueCount);
           setPendingRemaining(remaining);
-          setDuplicateModalOpen(true);
+          // show duplicates first when present, otherwise show missing modal
+          if (duplicates.length > 0) {
+            setDuplicateModalOpen(true);
+          } else if (missing.length > 0) {
+            setMissingModalOpen(true);
+          } else {
+            // only quota issue, show duplicate modal to keep same UX for confirmation
+            setDuplicateModalOpen(true);
+          }
           setLoading(false);
           return;
         }
@@ -169,14 +178,37 @@ export default function Import() {
 
   const handleModalCancel = () => {
     setDuplicateModalOpen(false);
+    setMissingModalOpen(false);
     setPendingBase64(null);
     setLoading(false);
   };
 
   const handleModalContinue = async () => {
+    // Close duplicate modal and if there are missing codes, show missing modal next
     setDuplicateModalOpen(false);
+    if (missingSamples && missingSamples.length > 0) {
+      setMissingModalOpen(true);
+      return;
+    }
+    // otherwise proceed to import
     if (pendingBase64) {
-      // if we know remaining and pendingUniqueCount exceeds it, pass maxProcess so backend limits processing
+      if (pendingRemaining !== null && pendingUniqueCount > pendingRemaining) {
+        await doImport(pendingBase64, pendingRemaining);
+      } else {
+        await doImport(pendingBase64);
+      }
+    }
+  };
+
+  const handleMissingCancel = () => {
+    setMissingModalOpen(false);
+    setPendingBase64(null);
+    setLoading(false);
+  };
+
+  const handleMissingContinue = async () => {
+    setMissingModalOpen(false);
+    if (pendingBase64) {
       if (pendingRemaining !== null && pendingUniqueCount > pendingRemaining) {
         await doImport(pendingBase64, pendingRemaining);
       } else {
@@ -323,7 +355,7 @@ export default function Import() {
                     </div>
                   )}
                   <h3 style={{ marginTop: 0, marginBottom: 8, background: '#ff5252', color: '#000', padding: '8px 12px', borderRadius: 6, display: 'block', width: '100%', textAlign: 'center' }}>
-                    {(duplicateSamples && duplicateSamples.length > 0) && (missingSamples && missingSamples.length > 0) ? 'Códigos duplicados e não encontrados' : (missingSamples && missingSamples.length > 0 ? 'Códigos não encontrados' : 'Códigos duplicados encontrados')}
+                    { (duplicateSamples && duplicateSamples.length > 0) ? 'Códigos duplicados encontrados' : ( (pendingUniqueCount !== null && pendingRemaining !== null && pendingUniqueCount > pendingRemaining) ? 'Aviso de cota' : 'Atenção' ) }
                   </h3>
                   <div style={{ marginTop: 0, marginBottom: 8 }}>
                     {pendingUniqueCount !== null && pendingRemaining !== null && pendingUniqueCount > pendingRemaining ? (
@@ -331,7 +363,7 @@ export default function Import() {
                     ) : (
                       <>
                         {(duplicateSamples && duplicateSamples.length > 0) && <p style={{ margin: 0 }}>A planilha possui códigos repetidos. Esses códigos duplicados serão ignorados durante o processamento.</p>}
-                        {(missingSamples && missingSamples.length > 0) && <p style={{ margin: 0 }}>Os seguintes NCMs não foram encontrados no sistema e serão ignorados durante o processamento.</p>}
+                        {!(duplicateSamples && duplicateSamples.length > 0) && (pendingUniqueCount !== null && pendingRemaining !== null && pendingUniqueCount > pendingRemaining) && <p style={{ margin:0 }}>Você excede a cota disponível.</p>}
                       </>
                     )}
                   </div>
@@ -340,14 +372,42 @@ export default function Import() {
                       {duplicateSamples.join(', ')}
                     </div>
                   )}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14 }}>
+                    <button onClick={handleModalCancel} style={{ padding: '8px 12px', borderRadius: 6, background: 'transparent', border: theme.name === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.08)', color: theme.colors.text, cursor: 'pointer' }}>Cancelar</button>
+                    <button onClick={handleModalContinue} style={{ padding: '8px 12px', borderRadius: 6, background: '#c62828', border: 'none', color: '#fff', cursor: 'pointer' }}>Continuar</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {missingModalOpen && (
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => {
+                  handleDrop(e);
+                  setMissingModalOpen(false);
+                }}
+                style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => { handleDrop(e); setMissingModalOpen(false); }}
+                  style={{ width: 560, maxWidth: '92%', borderRadius: 10, background: theme.colors.surface, color: theme.colors.text, padding: 18, boxShadow: '0 12px 40px rgba(0,0,0,0.08)', border: '1px solid rgba(255,82,82,0.12)', position: 'relative' }}
+                  role="dialog"
+                  aria-modal="true"
+                >
+                  <h3 style={{ marginTop: 0, marginBottom: 8, background: '#ff5252', color: '#000', padding: '8px 12px', borderRadius: 6, display: 'block', width: '100%', textAlign: 'center' }}>Códigos não encontrados</h3>
+                  <div style={{ marginTop: 0, marginBottom: 8 }}>
+                    <p style={{ margin: 0 }}>Os seguintes NCMs não foram encontrados no sistema e serão ignorados durante o processamento.</p>
+                  </div>
                   {missingSamples && missingSamples.length > 0 && (
-                    <div style={{ marginTop: 8, maxHeight: 140, overflow: 'auto', background: theme.name === 'light' ? '#fff6f6' : '#111', padding: 10, borderRadius: 6, border: '1px solid rgba(255,82,82,0.06)', color: theme.colors.text }}>
+                    <div style={{ marginTop: 6, maxHeight: 200, overflow: 'auto', background: theme.name === 'light' ? '#fff6f6' : '#111', padding: 10, borderRadius: 6, border: '1px solid rgba(255,82,82,0.06)', color: theme.colors.text }}>
                       {missingSamples.join(', ')}
                     </div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14 }}>
-                    <button onClick={handleModalCancel} style={{ padding: '8px 12px', borderRadius: 6, background: 'transparent', border: theme.name === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.08)', color: theme.colors.text, cursor: 'pointer' }}>Cancelar</button>
-                    <button onClick={handleModalContinue} style={{ padding: '8px 12px', borderRadius: 6, background: '#c62828', border: 'none', color: '#fff', cursor: 'pointer' }}>Continuar</button>
+                    <button onClick={handleMissingCancel} style={{ padding: '8px 12px', borderRadius: 6, background: 'transparent', border: theme.name === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.08)', color: theme.colors.text, cursor: 'pointer' }}>Cancelar</button>
+                    <button onClick={handleMissingContinue} style={{ padding: '8px 12px', borderRadius: 6, background: '#c62828', border: 'none', color: '#fff', cursor: 'pointer' }}>Continuar</button>
                   </div>
                 </div>
               </div>
