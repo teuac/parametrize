@@ -230,8 +230,8 @@ export default function Login() {
     document.documentElement.classList.add('login-full-bleed');
     return () => document.documentElement.classList.remove('login-full-bleed');
   }, []);
-  const [email, setEmail] = useState("admin@parametrizze.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
 
   async function submit(e) {

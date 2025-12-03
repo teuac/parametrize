@@ -127,9 +127,17 @@ export default function ImportManual() {
             <div className="content"><strong>Download automático:</strong> Ao terminar, o sistema faz o download automático da planilha com os resultados (cabeçalhos posicionados na linha 9).</div>
           </Step>
 
-          <div style={{ marginTop: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
-            <AlertTriangle color={theme.colors.accent} />
-            <div style={{ color: theme.colors.text, opacity: 0.9 }}>Observação: códigos duplicados são ignorados — você será informado e poderá optar por processar apenas os códigos únicos até o limite disponível.</div>
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <AlertTriangle color={theme.colors.accent} style={{ flexShrink: 0, marginTop: 2 }} />
+              <div style={{ color: theme.colors.text, opacity: 0.9 }}>
+                <strong>Observações importantes:</strong>
+                <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
+                  <li style={{ marginBottom: 6 }}>EM CASO DE DÚVIDAS EM QUALQUER ANÁLISE, CONSULTE SUA CONTABILIDADE PARA VALIDAÇÕES.</li>
+                  <li>Códigos duplicados são ignorados — você será informado e poderá optar por processar apenas os códigos únicos até o limite disponível.</li>
+                </ul>
+              </div>
+            </div>
           </div>
 
           <Actions>
