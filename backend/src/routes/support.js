@@ -125,8 +125,9 @@ supportRouter.post('/', async (req, res) => {
         <style>
           body { font-family: Arial, sans-serif; background-color: #0b0b0b; margin: 0; padding: 0; }
           .container { max-width: 600px; margin: 20px auto; background: #0b0b0b; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 1px solid #333; }
-          .header { background: #a8892a; color: #0b0b0b; padding: 20px 24px; }
+          .header { background: #a8892a; color: #0b0b0b; padding: 8px 24px; }
           .header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+          .header img { max-width: 160px; height: auto; margin: 0; display: inline-block; vertical-align: middle; }
           .content { padding: 24px; color: #ffffff; line-height: 1.6; }
           .info { background: #1a1a1a; padding: 12px; margin: 12px 0; border-radius: 4px; border-left: 4px solid #a8892a; }
           .message-box { background: #1a1a1a; padding: 16px; margin: 16px 0; border-radius: 4px; white-space: pre-wrap; font-size: 14px; color: #cccccc; border: 1px solid #333; }
@@ -135,7 +136,7 @@ supportRouter.post('/', async (req, res) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🔔 Nova Dúvida Recebida</h1>
+            ${attachments.length ? '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center"><img src="cid:logo" alt="Parametrize" width="160" style="width: 160px !important; max-width: 160px !important; height: auto; display: block;" /></td></tr></table><p style="margin: 8px 0 0 0; font-size: 14px;">🔔 Nova Dúvida Recebida</p>' : '<h1>🔔 Nova Dúvida Recebida</h1>'}
           </div>
           <div class="content">
             <div class="info">
