@@ -187,4 +187,29 @@ supportRouter.get('/:id', ensureAuth, ensureAdmin, async (req, res) => {
   }
 });
 
+// PATCH /support/:id/status - admin update ticket status
+supportRouter.patch('/:id/status', ensureAuth, ensureAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { status } = req.body;
+    
+    if (!status || !['novo', 'em atendimento', 'atendido'].includes(status)) {
+      return res.status(400).json({ error: 'Status inválido' });
+    }
+
+    const ticket = await prisma.supportTicket.findUnique({ where: { id } });
+    if (!ticket) return res.status(404).json({ error: 'Dúvida não encontrada' });
+
+    const updated = await prisma.supportTicket.update({
+      where: { id },
+      data: { status }
+    });
+
+    res.json(updated);
+  } catch (err) {
+    console.error('Error updating support ticket status', err);
+    res.status(500).json({ error: 'Erro ao atualizar status' });
+  }
+});
+
 export default supportRouter;
