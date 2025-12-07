@@ -208,6 +208,97 @@ const ErrorModalButton = styled.button`
   &:active { transform: translateY(0); }
 `;
 
+const LoadingModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+`;
+
+const LoadingModalBox = styled.div`
+  background: #0b0b0b;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 32px 48px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+`;
+
+const Spinner = styled.div`
+  width: 48px;
+  height: 48px;
+  border: 4px solid #333;
+  border-top-color: #a8892a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
+const LoadingText = styled.p`
+  color: #ddd;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+`;
+
+const ConfirmationModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10002;
+`;
+
+const ConfirmationModalBox = styled.div`
+  background: #0b0b0b;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  text-align: center;
+`;
+
+const ConfirmationIcon = styled.div`
+  font-size: 3rem;
+  margin-bottom: 16px;
+`;
+
+const ConfirmationTitle = styled.h3`
+  color: ${p => p.success ? '#4caf50' : '#ff6b6b'};
+  margin: 0 0 8px 0;
+  font-size: 1.2rem;
+`;
+
+const ConfirmationText = styled.p`
+  color: #ddd;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+`;
+
+const ConfirmationButton = styled.button`
+  padding: 10px 24px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: linear-gradient(180deg, #BFA032 0%, #A8892A 100%);
+  color: #0b0b0b;
+  &:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(168,137,42,0.3); }
+  &:active { transform: translateY(0); }
+`;
+
 export default function UsersCrud(){
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
@@ -218,10 +309,10 @@ export default function UsersCrud(){
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true, isBlocked: false, cpfCnpj: '', telefone: '', adesao: null, activeUpdatedAt: null, dailySearchLimit: 100, quotaType: 'DAILY', packageLimit: 0, packageRemaining: 0 });
+  const [saving, setSaving] = useState(false);
+  const [confirmationModal, setConfirmationModal] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [errorModalOpen, setErrorModalOpen] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -245,6 +336,7 @@ export default function UsersCrud(){
   const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role, active: u.active ?? true, isBlocked: u.isBlocked ?? u.blocked ?? false, cpfCnpj: u.cpfCnpj ?? '', telefone: u.telefone ?? '', adesao: u.adesao, activeUpdatedAt: u.activeUpdatedAt, dailySearchLimit: u.dailySearchLimit ?? 100, quotaType: u.quotaType || 'DAILY', packageLimit: u.packageLimit || 0, packageRemaining: u.packageRemaining || 0 }); setModalOpen(true) };
 
   const save = async () => {
+    setSaving(true);
     try{
       const payloadBase = { name: form.name, email: form.email, ...(form.password?{password:form.password}:{}), role: form.role, active: form.active, isBlocked: Boolean(form.isBlocked), cpfCnpj: form.cpfCnpj, telefone: form.telefone, dailySearchLimit: Number(form.dailySearchLimit || 0), quotaType: form.quotaType || 'DAILY' };
       if (form.quotaType === 'PACKAGE') {
@@ -257,13 +349,21 @@ export default function UsersCrud(){
       }else{
         await api.post('/users', payloadBase);
       }
+      setSaving(false);
       setModalOpen(false);
       fetchUsers();
+      setConfirmationModal({ 
+        success: true, 
+        message: editing ? 'Usuário atualizado com sucesso!' : 'Usuário cadastrado com sucesso!'
+      });
     }catch(e){ 
       console.error(e); 
+      setSaving(false);
       const errMsg = e.response?.data?.error || e.message || 'Erro desconhecido ao salvar usuário';
-      setErrorMessage(errMsg);
-      setErrorModalOpen(true);
+      setConfirmationModal({ 
+        success: false, 
+        message: errMsg
+      });
     }
   };
 
@@ -494,18 +594,26 @@ export default function UsersCrud(){
         </ModalOverlay>
       )}
 
-      {errorModalOpen && (
-        <ErrorModalOverlay onClick={() => setErrorModalOpen(false)}>
-          <ErrorModalBox onClick={(e) => e.stopPropagation()}>
-            <ErrorModalTitle>
-              <span>⚠️</span> Erro ao salvar usuário
-            </ErrorModalTitle>
-            <ErrorModalText>{errorMessage}</ErrorModalText>
-            <ErrorModalActions>
-              <ErrorModalButton onClick={() => setErrorModalOpen(false)}>Fechar</ErrorModalButton>
-            </ErrorModalActions>
-          </ErrorModalBox>
-        </ErrorModalOverlay>
+      {saving && (
+        <LoadingModalOverlay>
+          <LoadingModalBox>
+            <Spinner />
+            <LoadingText>{editing ? 'Atualizando usuário...' : 'Criando usuário e enviando email...'}</LoadingText>
+          </LoadingModalBox>
+        </LoadingModalOverlay>
+      )}
+
+      {confirmationModal && (
+        <ConfirmationModalOverlay onClick={() => setConfirmationModal(null)}>
+          <ConfirmationModalBox onClick={(e) => e.stopPropagation()}>
+            <ConfirmationIcon>{confirmationModal.success ? '✅' : '❌'}</ConfirmationIcon>
+            <ConfirmationTitle success={confirmationModal.success}>
+              {confirmationModal.success ? 'Sucesso!' : 'Erro'}
+            </ConfirmationTitle>
+            <ConfirmationText>{confirmationModal.message}</ConfirmationText>
+            <ConfirmationButton onClick={() => setConfirmationModal(null)}>OK</ConfirmationButton>
+          </ConfirmationModalBox>
+        </ConfirmationModalOverlay>
       )}
     </Container>
   );
