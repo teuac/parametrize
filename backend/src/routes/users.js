@@ -19,15 +19,36 @@ usersRouter.get('/', async (_, res) => {
 });
 
 usersRouter.post('/', async (req, res) => {
-  // accept both `blocked` and `isBlocked` from the client for compatibility
-  const { name, email, password, role = Role.user, active = true, blocked = false, isBlocked, cpfCnpj, telefone, dailySearchLimit = 100, quotaType = 'DAILY', packageLimit = 0, packageRemaining } = req.body;
-  const finalBlocked = typeof isBlocked !== 'undefined' ? Boolean(isBlocked) : Boolean(blocked);
-  const plainPassword = password; // keep plain password to include in email
-  const hash = await bcrypt.hash(password, 10);
-  // adesao will be set by Prisma default(now())
-  // if packageRemaining not provided but packageLimit is, initialize remaining to packageLimit
-  const pkgRem = typeof packageRemaining !== 'undefined' ? Number(packageRemaining) : (Number(packageLimit) || 0);
-  const user = await prisma.user.create({ data: { name, email, password: hash, role, active, blocked: finalBlocked, cpfCnpj, telefone, activeUpdatedAt: active ? new Date() : null, dailySearchLimit, quotaType, packageLimit: Number(packageLimit || 0), packageRemaining: pkgRem } });
+  try {
+    // accept both `blocked` and `isBlocked` from the client for compatibility
+    const { name, email, password, role = Role.user, active = true, blocked = false, isBlocked, cpfCnpj, telefone, dailySearchLimit = 100, quotaType = 'DAILY', packageLimit = 0, packageRemaining } = req.body;
+    
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Nome, email e senha são obrigatórios' });
+    }
+
+    // Check if email already exists
+    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    if (existingEmail) {
+      return res.status(400).json({ error: `O email "${email}" já está cadastrado no sistema` });
+    }
+
+    // Check if CPF/CNPJ already exists (if provided)
+    if (cpfCnpj && cpfCnpj.trim()) {
+      const existingCpf = await prisma.user.findFirst({ where: { cpfCnpj: cpfCnpj.trim() } });
+      if (existingCpf) {
+        return res.status(400).json({ error: `O CPF/CNPJ "${cpfCnpj}" já está cadastrado no sistema` });
+      }
+    }
+
+    const finalBlocked = typeof isBlocked !== 'undefined' ? Boolean(isBlocked) : Boolean(blocked);
+    const plainPassword = password; // keep plain password to include in email
+    const hash = await bcrypt.hash(password, 10);
+    // adesao will be set by Prisma default(now())
+    // if packageRemaining not provided but packageLimit is, initialize remaining to packageLimit
+    const pkgRem = typeof packageRemaining !== 'undefined' ? Number(packageRemaining) : (Number(packageLimit) || 0);
+    const user = await prisma.user.create({ data: { name, email, password: hash, role, active, blocked: finalBlocked, cpfCnpj, telefone, activeUpdatedAt: active ? new Date() : null, dailySearchLimit, quotaType, packageLimit: Number(packageLimit || 0), packageRemaining: pkgRem } });
 
   // Send welcome email with access data. Await to ensure it's sent before responding (like other email endpoints).
   try {
@@ -126,44 +147,101 @@ usersRouter.post('/', async (req, res) => {
   }
 
   res.status(201).json({ id: user.id });
+  } catch (err) {
+    console.error('Error creating user:', err);
+    if (err.code === 'P2002') {
+      // Prisma unique constraint violation
+      const field = err.meta?.target?.[0] || 'campo';
+      return res.status(400).json({ error: `O ${field} informado já está cadastrado no sistema` });
+    }
+    res.status(500).json({ error: err.message || 'Erro ao criar usuário' });
+  }
 });
 
 usersRouter.put('/:id', async (req, res) => {
-  const id = Number(req.params.id);
-  const incoming = { ...req.body };
-  if (incoming.password) incoming.password = await bcrypt.hash(incoming.password, 10);
+  try {
+    const id = Number(req.params.id);
+    const incoming = { ...req.body };
 
-  // If active field is being updated, compare with current value and set activeUpdatedAt accordingly
-  if (typeof incoming.active !== 'undefined') {
-    const existing = await prisma.user.findUnique({ where: { id }, select: { active: true } });
-    if (existing && existing.active !== incoming.active) {
-      incoming.activeUpdatedAt = new Date();
+    // Check if email is being changed and if it's already taken by another user
+    if (incoming.email) {
+      const existingEmail = await prisma.user.findFirst({ 
+        where: { 
+          email: incoming.email,
+          NOT: { id }
+        } 
+      });
+      if (existingEmail) {
+        return res.status(400).json({ error: `O email "${incoming.email}" já está cadastrado no sistema` });
+      }
     }
-  }
 
-  // allow updating blocked flag as well. accept `isBlocked` alias from client
-  if (typeof incoming.isBlocked !== 'undefined') {
-    incoming.blocked = Boolean(incoming.isBlocked);
-    delete incoming.isBlocked;
-  }
-
-  // handle quota fields: ensure numeric types and initialize packageRemaining when packageLimit provided but remaining not
-  if (typeof incoming.packageLimit !== 'undefined') {
-    incoming.packageLimit = Number(incoming.packageLimit || 0);
-    if (typeof incoming.packageRemaining === 'undefined') {
-      incoming.packageRemaining = incoming.packageLimit;
-    } else {
-      incoming.packageRemaining = Number(incoming.packageRemaining || 0);
+    // Check if CPF/CNPJ is being changed and if it's already taken by another user
+    if (incoming.cpfCnpj && incoming.cpfCnpj.trim()) {
+      const existingCpf = await prisma.user.findFirst({ 
+        where: { 
+          cpfCnpj: incoming.cpfCnpj.trim(),
+          NOT: { id }
+        } 
+      });
+      if (existingCpf) {
+        return res.status(400).json({ error: `O CPF/CNPJ "${incoming.cpfCnpj}" já está cadastrado no sistema` });
+      }
     }
-  }
-  if (typeof incoming.dailySearchLimit !== 'undefined') incoming.dailySearchLimit = Number(incoming.dailySearchLimit || 0);
 
-  await prisma.user.update({ where: { id }, data: incoming });
-  res.json({ ok: true });
+    if (incoming.password) incoming.password = await bcrypt.hash(incoming.password, 10);
+
+    // If active field is being updated, compare with current value and set activeUpdatedAt accordingly
+    if (typeof incoming.active !== 'undefined') {
+      const existing = await prisma.user.findUnique({ where: { id }, select: { active: true } });
+      if (existing && existing.active !== incoming.active) {
+        incoming.activeUpdatedAt = new Date();
+      }
+    }
+
+    // allow updating blocked flag as well. accept `isBlocked` alias from client
+    if (typeof incoming.isBlocked !== 'undefined') {
+      incoming.blocked = Boolean(incoming.isBlocked);
+      delete incoming.isBlocked;
+    }
+
+    // handle quota fields: ensure numeric types and initialize packageRemaining when packageLimit provided but remaining not
+    if (typeof incoming.packageLimit !== 'undefined') {
+      incoming.packageLimit = Number(incoming.packageLimit || 0);
+      if (typeof incoming.packageRemaining === 'undefined') {
+        incoming.packageRemaining = incoming.packageLimit;
+      } else {
+        incoming.packageRemaining = Number(incoming.packageRemaining || 0);
+      }
+    }
+    if (typeof incoming.dailySearchLimit !== 'undefined') incoming.dailySearchLimit = Number(incoming.dailySearchLimit || 0);
+
+    await prisma.user.update({ where: { id }, data: incoming });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error updating user:', err);
+    if (err.code === 'P2002') {
+      // Prisma unique constraint violation
+      const field = err.meta?.target?.[0] || 'campo';
+      return res.status(400).json({ error: `O ${field} informado já está cadastrado no sistema` });
+    }
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+    res.status(500).json({ error: err.message || 'Erro ao atualizar usuário' });
+  }
 });
 
 usersRouter.delete('/:id', async (req, res) => {
-  const id = Number(req.params.id);
-  await prisma.user.delete({ where: { id } });
-  res.json({ ok: true });
+  try {
+    const id = Number(req.params.id);
+    await prisma.user.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+    res.status(500).json({ error: err.message || 'Erro ao deletar usuário' });
+  }
 });

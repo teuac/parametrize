@@ -154,6 +154,60 @@ const CancelBtn = styled.button`
   background:transparent; color:${({ theme }) => theme.colors.text}; border:1px solid ${({ theme }) => theme.colors.border}; padding:8px 12px; border-radius:8px; cursor:pointer;
 `;
 
+const ErrorModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+`;
+
+const ErrorModalBox = styled.div`
+  background: #0b0b0b;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+`;
+
+const ErrorModalTitle = styled.h3`
+  color: #ff6b6b;
+  margin: 0 0 16px 0;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const ErrorModalText = styled.p`
+  color: #ddd;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+  word-break: break-word;
+`;
+
+const ErrorModalActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`;
+
+const ErrorModalButton = styled.button`
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: linear-gradient(180deg, #BFA032 0%, #A8892A 100%);
+  color: #0b0b0b;
+  &:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(168,137,42,0.3); }
+  &:active { transform: translateY(0); }
+`;
+
 export default function UsersCrud(){
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
@@ -166,6 +220,8 @@ export default function UsersCrud(){
   const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true, isBlocked: false, cpfCnpj: '', telefone: '', adesao: null, activeUpdatedAt: null, dailySearchLimit: 100, quotaType: 'DAILY', packageLimit: 0, packageRemaining: 0 });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -203,7 +259,12 @@ export default function UsersCrud(){
       }
       setModalOpen(false);
       fetchUsers();
-    }catch(e){ console.error(e); alert('Erro ao salvar usuário'); }
+    }catch(e){ 
+      console.error(e); 
+      const errMsg = e.response?.data?.error || e.message || 'Erro desconhecido ao salvar usuário';
+      setErrorMessage(errMsg);
+      setErrorModalOpen(true);
+    }
   };
 
   const openDelete = (u) => { setDeleteTarget(u); setDeleteModalOpen(true); };
@@ -431,6 +492,20 @@ export default function UsersCrud(){
             </ModalActions>
           </ModalBox>
         </ModalOverlay>
+      )}
+
+      {errorModalOpen && (
+        <ErrorModalOverlay onClick={() => setErrorModalOpen(false)}>
+          <ErrorModalBox onClick={(e) => e.stopPropagation()}>
+            <ErrorModalTitle>
+              <span>⚠️</span> Erro ao salvar usuário
+            </ErrorModalTitle>
+            <ErrorModalText>{errorMessage}</ErrorModalText>
+            <ErrorModalActions>
+              <ErrorModalButton onClick={() => setErrorModalOpen(false)}>Fechar</ErrorModalButton>
+            </ErrorModalActions>
+          </ErrorModalBox>
+        </ErrorModalOverlay>
       )}
     </Container>
   );
