@@ -134,7 +134,7 @@ export default function ImportManual() {
                 <strong>Observações importantes:</strong>
                 <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
                   <li style={{ marginBottom: 6 }}>EM CASO DE DÚVIDAS EM QUALQUER ANÁLISE, CONSULTE SUA CONTABILIDADE PARA VALIDAÇÕES.</li>
-                  <li style={{ marginBottom: 6 }}>Nosso é sistema uma solução automatizada que faz a configuração inicial dos dados, mas a validação, conferência e inserção final no sistema permanecem sob responsabilidade do profissional.</li>
+                  <li style={{ marginBottom: 6 }}>Nosso sistema éuma solução automatizada que faz a configuração inicial dos dados, mas a validação, conferência e inserção final no sistema permanecem sob responsabilidade do profissional.</li>
                   <li>Códigos duplicados são ignorados — você será informado e poderá optar por processar apenas os códigos únicos até o limite disponível.</li>
                 </ul>
               </div>
