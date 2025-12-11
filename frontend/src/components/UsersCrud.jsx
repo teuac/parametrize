@@ -304,6 +304,7 @@ export default function UsersCrud(){
   const [search, setSearch] = useState('');
   const [searchField, setSearchField] = useState('email');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [quotaTypeFilter, setQuotaTypeFilter] = useState('all');
   const [usageMap, setUsageMap] = useState({});
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -405,12 +406,20 @@ export default function UsersCrud(){
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ color: 'var(--text, #666)', fontSize: '0.95rem' }}>Exibindo:</div>
+            <div style={{ color: 'var(--text, #666)', fontSize: '0.95rem' }}>Status:</div>
             <Select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{ height: 38 }}>
               <option value="all">Todos</option>
               <option value="active">Ativo</option>
               <option value="inactive">Inativo</option>
               <option value="blocked">Bloqueado</option>
+            </Select>
+            
+            <div style={{ color: 'var(--text, #666)', fontSize: '0.95rem', marginLeft: 8 }}>Tipo cota:</div>
+            <Select value={quotaTypeFilter} onChange={e=>setQuotaTypeFilter(e.target.value)} style={{ height: 38 }}>
+              <option value="all">Todos</option>
+              <option value="DAILY">Diário</option>
+              <option value="PACKAGE">Pacote</option>
+              <option value="MONTHLY">Mensal</option>
             </Select>
           </div>
         </div>
@@ -442,6 +451,9 @@ export default function UsersCrud(){
                   if (statusFilter === 'active' && !(u.active && !isBlocked)) return false;
                   if (statusFilter === 'inactive' && !( !u.active && !isBlocked)) return false;
                   if (statusFilter === 'blocked' && !isBlocked) return false;
+
+                  // Quota type filter
+                  if (quotaTypeFilter !== 'all' && u.quotaType !== quotaTypeFilter) return false;
 
                   // Search filter
                   if (!search) return true;
