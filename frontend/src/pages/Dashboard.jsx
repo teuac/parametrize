@@ -881,7 +881,12 @@ export default function Dashboard() {
                 {quota ? (
                   (() => {
                     const remaining = typeof quota.remaining === 'number' ? quota.remaining : Math.max(0, (quota.limit || 0) - (quota.used || 0));
-                    const title = quota && quota.type === 'package' ? 'consultas restantes (pacote):' : 'consultas restantes:';
+                    let title = 'consultas restantes:';
+                    if (quota.type === 'package') {
+                      title = 'consultas restantes (pacote):';
+                    } else if (quota.type === 'monthly') {
+                      title = 'consultas restantes (mensal):';
+                    }
                     return (
                       <>
                         <QuotaTitle>{title}</QuotaTitle>

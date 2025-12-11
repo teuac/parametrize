@@ -16,13 +16,47 @@ ncmRouter.get("/", async (req, res) => {
     // if client asks to skip logging (already shown), honor that early
     const skipLog = String(req.query?.skipLog || '').toLowerCase() === 'true' || req.headers['x-skip-searchlog'] === '1';
     const userId = req.user?.id;
-    // If this is a search (q provided) and the user is not admin and logging is not skipped, enforce quota (daily or package)
+    // If this is a search (q provided) and the user is not admin and logging is not skipped, enforce quota (daily or package or monthly)
     if (q && req.user?.role !== 'admin' && !skipLog) {
       try {
         // fetch user quota fields once and reuse below
-        var userRecord = await prisma.user.findUnique({ where: { id: userId }, select: { dailySearchLimit: true, quotaType: true, packageRemaining: true, packageLimit: true } });
+        var userRecord = await prisma.user.findUnique({ where: { id: userId }, select: { dailySearchLimit: true, quotaType: true, packageRemaining: true, packageLimit: true, monthlyRemaining: true, monthlyLimit: true, monthlyRenewalDay: true, lastMonthlyRenewal: true } });
         const quotaType = String(userRecord?.quotaType || 'DAILY').toUpperCase();
-        if (quotaType === 'PACKAGE') {
+        
+        if (quotaType === 'MONTHLY') {
+          // Check if monthly quota needs renewal
+          const today = new Date();
+          const currentDay = today.getDate();
+          let needsRenewal = false;
+          
+          if (userRecord.lastMonthlyRenewal) {
+            const daysSinceLastRenewal = Math.floor((today - new Date(userRecord.lastMonthlyRenewal)) / (1000 * 60 * 60 * 24));
+            if (daysSinceLastRenewal >= 25 && currentDay >= userRecord.monthlyRenewalDay) {
+              needsRenewal = true;
+            } else if (currentDay === userRecord.monthlyRenewalDay) {
+              needsRenewal = true;
+            }
+          } else {
+            needsRenewal = true;
+          }
+          
+          if (needsRenewal) {
+            await prisma.user.update({
+              where: { id: userId },
+              data: {
+                monthlyRemaining: userRecord.monthlyLimit || 0,
+                lastMonthlyRenewal: today
+              }
+            });
+            userRecord.monthlyRemaining = userRecord.monthlyLimit || 0;
+          }
+          
+          const remaining = Number(userRecord?.monthlyRemaining || 0);
+          const limit = Number(userRecord?.monthlyLimit || 0);
+          if (remaining <= 0) {
+            return res.status(429).json({ error: 'Limite de consultas mensais esgotado', limit, remaining });
+          }
+        } else if (quotaType === 'PACKAGE') {
           const remaining = Number(userRecord?.packageRemaining || 0);
           const limit = Number(userRecord?.packageLimit || 0);
           if (remaining <= 0) {
@@ -84,12 +118,25 @@ ncmRouter.get("/", async (req, res) => {
       LIMIT 50;
     `;
 
-    // If this was a real search and logging isn't skipped, for PACKAGE quotas perform an atomic decrement synchronously
+    // If this was a real search and logging isn't skipped, for PACKAGE/MONTHLY quotas perform an atomic decrement synchronously
     // so the client can be informed immediately. For DAILY quotas we keep the non-blocking async logging behavior.
     if (q && req.user?.role !== 'admin' && !skipLog) {
       try {
         const userIdNum = Number(req.user.id);
-        if (userRecord && String(userRecord.quotaType).toUpperCase() === 'PACKAGE') {
+        const quotaType = String(userRecord?.quotaType || 'DAILY').toUpperCase();
+        
+        if (quotaType === 'MONTHLY') {
+          // attempt to decrement monthlyRemaining atomically and create SearchLog synchronously if successful
+          const upd = await prisma.user.updateMany({ where: { id: userIdNum, monthlyRemaining: { gt: 0 } }, data: { monthlyRemaining: { decrement: 1 } } });
+          if (upd && upd.count && upd.count > 0) {
+            await prisma.searchLog.create({ data: { userId: userIdNum, query: String(q).trim() } });
+            // compute new remaining for header
+            const newRemaining = Math.max(0, Number(userRecord.monthlyRemaining || 0) - 1);
+            res.set('x-quota-remaining', String(newRemaining));
+          } else {
+            console.warn('Monthly decrement failed (race condition or limit hit)');
+          }
+        } else if (quotaType === 'PACKAGE') {
           // attempt to decrement packageRemaining atomically and create SearchLog synchronously if successful
           const upd = await prisma.user.updateMany({ where: { id: userIdNum, packageRemaining: { gt: 0 } }, data: { packageRemaining: { decrement: 1 } } });
           if (upd && upd.count && upd.count > 0) {

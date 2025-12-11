@@ -245,9 +245,42 @@ utilRouter.get('/quota', async (req, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Não autorizado' });
     // fetch quota fields from user
-    const userRecord = await prisma.user.findUnique({ where: { id: userId }, select: { dailySearchLimit: true, quotaType: true, packageLimit: true, packageRemaining: true } });
+    const userRecord = await prisma.user.findUnique({ where: { id: userId }, select: { dailySearchLimit: true, quotaType: true, packageLimit: true, packageRemaining: true, monthlyLimit: true, monthlyRemaining: true, monthlyRenewalDay: true, lastMonthlyRenewal: true } });
     const quotaType = userRecord?.quotaType || 'DAILY';
-    if (String(quotaType).toUpperCase() === 'PACKAGE') {
+    
+    if (String(quotaType).toUpperCase() === 'MONTHLY') {
+      // Check if monthly quota needs renewal
+      const today = new Date();
+      const currentDay = today.getDate();
+      let needsRenewal = false;
+      
+      if (userRecord.lastMonthlyRenewal) {
+        const daysSinceLastRenewal = Math.floor((today - new Date(userRecord.lastMonthlyRenewal)) / (1000 * 60 * 60 * 24));
+        if (daysSinceLastRenewal >= 25 && currentDay >= userRecord.monthlyRenewalDay) {
+          needsRenewal = true;
+        } else if (currentDay === userRecord.monthlyRenewalDay) {
+          needsRenewal = true;
+        }
+      } else {
+        needsRenewal = true;
+      }
+      
+      if (needsRenewal) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            monthlyRemaining: userRecord.monthlyLimit || 0,
+            lastMonthlyRenewal: today
+          }
+        });
+        userRecord.monthlyRemaining = userRecord.monthlyLimit || 0;
+      }
+      
+      const limit = Number(userRecord?.monthlyLimit || 0);
+      const remaining = Number(userRecord?.monthlyRemaining || 0);
+      const used = Math.max(0, limit - remaining);
+      return res.json({ type: 'monthly', used, limit, remaining, renewalDay: userRecord.monthlyRenewalDay });
+    } else if (String(quotaType).toUpperCase() === 'PACKAGE') {
       const limit = Number(userRecord?.packageLimit || 0);
       const remaining = Number(userRecord?.packageRemaining || 0);
       const used = Math.max(0, limit - remaining);
@@ -501,14 +534,24 @@ utilRouter.post('/import-ncm', async (req, res) => {
 
       const matches = norm ? (matchesMap[norm] || []) : [];
       if (matches.length) {
-        // Non-blocking: record one SearchLog and decrement package if applicable
+        // Non-blocking: record one SearchLog and decrement package/monthly if applicable
         try {
           if (req.user && req.user.role !== 'admin') {
             (async () => {
               try {
                 const userIdNum = Number(req.user.id);
-                const u = await prisma.user.findUnique({ where: { id: userIdNum }, select: { quotaType: true, packageRemaining: true } });
-                if (u && String(u.quotaType).toUpperCase() === 'PACKAGE') {
+                const u = await prisma.user.findUnique({ where: { id: userIdNum }, select: { quotaType: true, packageRemaining: true, monthlyRemaining: true } });
+                const quotaType = String(u?.quotaType || 'DAILY').toUpperCase();
+                
+                if (quotaType === 'MONTHLY') {
+                  // attempt to decrement monthlyRemaining atomically
+                  const upd = await prisma.user.updateMany({ where: { id: userIdNum, monthlyRemaining: { gt: 0 } }, data: { monthlyRemaining: { decrement: 1 } } });
+                  if (upd && upd.count && upd.count > 0) {
+                    await prisma.searchLog.create({ data: { userId: userIdNum, query: norm } });
+                  } else {
+                    // no monthly remaining: do not log
+                  }
+                } else if (quotaType === 'PACKAGE') {
                   // attempt to decrement packageRemaining atomically
                   const upd = await prisma.user.updateMany({ where: { id: userIdNum, packageRemaining: { gt: 0 } }, data: { packageRemaining: { decrement: 1 } } });
                   if (upd && upd.count && upd.count > 0) {
@@ -831,5 +874,56 @@ utilRouter.get('/download-modelo', async (req, res) => {
   } catch (err) {
     console.error('Erro ao enviar modelo de importação:', err && err.stack ? err.stack : err);
     return res.status(500).json({ error: 'Erro ao enviar modelo' });
+  }
+});
+// Utility function to check and renew monthly quotas (can be called by a cron job or on-demand)
+utilRouter.post('/renew-monthly-quotas', ensureAdmin, async (req, res) => {
+  try {
+    const today = new Date();
+    const currentDay = today.getDate();
+    
+    // Find all users with MONTHLY quota type
+    const monthlyUsers = await prisma.user.findMany({
+      where: { quotaType: 'MONTHLY' }
+    });
+    
+    const renewed = [];
+    
+    for (const user of monthlyUsers) {
+      // Check if renewal is needed
+      const shouldRenew = user.monthlyRenewalDay === currentDay;
+      
+      // Also check if lastMonthlyRenewal is more than 25 days ago to prevent missing renewals
+      let needsRenewal = shouldRenew;
+      if (user.lastMonthlyRenewal) {
+        const daysSinceLastRenewal = Math.floor((today - new Date(user.lastMonthlyRenewal)) / (1000 * 60 * 60 * 24));
+        if (daysSinceLastRenewal >= 25 && currentDay >= user.monthlyRenewalDay) {
+          needsRenewal = true;
+        }
+      } else {
+        // If never renewed, renew now
+        needsRenewal = true;
+      }
+      
+      if (needsRenewal) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            monthlyRemaining: user.monthlyLimit || 0,
+            lastMonthlyRenewal: today
+          }
+        });
+        renewed.push({ id: user.id, email: user.email, name: user.name });
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `${renewed.length} usuário(s) com cota mensal renovada`,
+      renewed 
+    });
+  } catch (err) {
+    console.error('Erro ao renovar cotas mensais:', err);
+    res.status(500).json({ error: 'Erro ao renovar cotas mensais' });
   }
 });

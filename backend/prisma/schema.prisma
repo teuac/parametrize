@@ -15,6 +15,7 @@ enum Role {
 enum QuotaType {
   DAILY
   PACKAGE
+  MONTHLY
 }
 
 model User {
@@ -34,6 +35,11 @@ model User {
   quotaType QuotaType     @default(DAILY)
   packageLimit Int?       @default(0)
   packageRemaining Int?   @default(0)
+  // Monthly quota fields
+  monthlyLimit Int?       @default(0)
+  monthlyRemaining Int?   @default(0)
+  monthlyRenewalDay Int?  @default(1)
+  lastMonthlyRenewal DateTime?
   searches   SearchLog[]
   supportTickets SupportTicket[]
   createdAt  DateTime @default(now())

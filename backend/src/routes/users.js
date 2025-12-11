@@ -12,7 +12,7 @@ export const usersRouter = Router();
 usersRouter.use(ensureAuth, ensureAdmin);
 
 usersRouter.get('/', async (_, res) => {
-  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, active: true, blocked: true, createdAt: true, cpfCnpj: true, adesao: true, telefone: true, activeUpdatedAt: true, dailySearchLimit: true, quotaType: true, packageLimit: true, packageRemaining: true } });
+  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, active: true, blocked: true, createdAt: true, cpfCnpj: true, adesao: true, telefone: true, activeUpdatedAt: true, dailySearchLimit: true, quotaType: true, packageLimit: true, packageRemaining: true, monthlyLimit: true, monthlyRemaining: true, monthlyRenewalDay: true, lastMonthlyRenewal: true } });
   // expose legacy `blocked` and the new `isBlocked` alias in the API
   const out = users.map(u => ({ ...u, isBlocked: u.blocked }));
   res.json(out);
@@ -21,7 +21,7 @@ usersRouter.get('/', async (_, res) => {
 usersRouter.post('/', async (req, res) => {
   try {
     // accept both `blocked` and `isBlocked` from the client for compatibility
-    const { name, email, password, role = Role.user, active = true, blocked = false, isBlocked, cpfCnpj, telefone, dailySearchLimit = 100, quotaType = 'DAILY', packageLimit = 0, packageRemaining } = req.body;
+    const { name, email, password, role = Role.user, active = true, blocked = false, isBlocked, cpfCnpj, telefone, dailySearchLimit = 100, quotaType = 'DAILY', packageLimit = 0, packageRemaining, monthlyLimit = 0, monthlyRemaining, monthlyRenewalDay = 1 } = req.body;
     
     // Validate required fields
     if (!name || !email || !password) {
@@ -46,9 +46,21 @@ usersRouter.post('/', async (req, res) => {
     const plainPassword = password; // keep plain password to include in email
     const hash = await bcrypt.hash(password, 10);
     // adesao will be set by Prisma default(now())
-    // if packageRemaining not provided but packageLimit is, initialize remaining to packageLimit
+    
+    // Initialize quota fields based on type
     const pkgRem = typeof packageRemaining !== 'undefined' ? Number(packageRemaining) : (Number(packageLimit) || 0);
-    const user = await prisma.user.create({ data: { name, email, password: hash, role, active, blocked: finalBlocked, cpfCnpj, telefone, activeUpdatedAt: active ? new Date() : null, dailySearchLimit, quotaType, packageLimit: Number(packageLimit || 0), packageRemaining: pkgRem } });
+    const monthlyRem = typeof monthlyRemaining !== 'undefined' ? Number(monthlyRemaining) : (Number(monthlyLimit) || 0);
+    
+    const userData = { 
+      name, email, password: hash, role, active, blocked: finalBlocked, cpfCnpj, telefone, 
+      activeUpdatedAt: active ? new Date() : null, dailySearchLimit, quotaType,
+      packageLimit: Number(packageLimit || 0), packageRemaining: pkgRem,
+      monthlyLimit: Number(monthlyLimit || 0), monthlyRemaining: monthlyRem,
+      monthlyRenewalDay: Number(monthlyRenewalDay || 1),
+      lastMonthlyRenewal: quotaType === 'MONTHLY' ? new Date() : null
+    };
+    
+    const user = await prisma.user.create({ data: userData });
 
   // Send welcome email with access data. Await to ensure it's sent before responding (like other email endpoints).
   try {
@@ -214,6 +226,20 @@ usersRouter.put('/:id', async (req, res) => {
         incoming.packageRemaining = Number(incoming.packageRemaining || 0);
       }
     }
+    
+    // handle monthly quota fields
+    if (typeof incoming.monthlyLimit !== 'undefined') {
+      incoming.monthlyLimit = Number(incoming.monthlyLimit || 0);
+      if (typeof incoming.monthlyRemaining === 'undefined') {
+        incoming.monthlyRemaining = incoming.monthlyLimit;
+      } else {
+        incoming.monthlyRemaining = Number(incoming.monthlyRemaining || 0);
+      }
+    }
+    if (typeof incoming.monthlyRenewalDay !== 'undefined') {
+      incoming.monthlyRenewalDay = Number(incoming.monthlyRenewalDay || 1);
+    }
+    
     if (typeof incoming.dailySearchLimit !== 'undefined') incoming.dailySearchLimit = Number(incoming.dailySearchLimit || 0);
 
     await prisma.user.update({ where: { id }, data: incoming });

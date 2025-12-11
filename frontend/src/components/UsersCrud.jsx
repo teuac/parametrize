@@ -308,7 +308,7 @@ export default function UsersCrud(){
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true, isBlocked: false, cpfCnpj: '', telefone: '', adesao: null, activeUpdatedAt: null, dailySearchLimit: 100, quotaType: 'DAILY', packageLimit: 0, packageRemaining: 0 });
+  const [form, setForm] = useState({ name:'', email:'', password:'', role:'user', active: true, isBlocked: false, cpfCnpj: '', telefone: '', adesao: null, activeUpdatedAt: null, dailySearchLimit: 100, quotaType: 'DAILY', packageLimit: 0, packageRemaining: 0, monthlyLimit: 0, monthlyRemaining: 0, monthlyRenewalDay: 1 });
   const [saving, setSaving] = useState(false);
   const [confirmationModal, setConfirmationModal] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -332,8 +332,8 @@ export default function UsersCrud(){
 
   useEffect(()=>{ fetchUsers() }, []);
 
-  const openNew = () => { setEditing(null); setForm({ name:'', email:'', password:'', role:'user', active: true, isBlocked: false, cpfCnpj: '', telefone: '', dailySearchLimit: 100, quotaType: 'DAILY', packageLimit: 0, packageRemaining: 0 }); setModalOpen(true) };
-  const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role, active: u.active ?? true, isBlocked: u.isBlocked ?? u.blocked ?? false, cpfCnpj: u.cpfCnpj ?? '', telefone: u.telefone ?? '', adesao: u.adesao, activeUpdatedAt: u.activeUpdatedAt, dailySearchLimit: u.dailySearchLimit ?? 100, quotaType: u.quotaType || 'DAILY', packageLimit: u.packageLimit || 0, packageRemaining: u.packageRemaining || 0 }); setModalOpen(true) };
+  const openNew = () => { setEditing(null); setForm({ name:'', email:'', password:'', role:'user', active: true, isBlocked: false, cpfCnpj: '', telefone: '', dailySearchLimit: 100, quotaType: 'DAILY', packageLimit: 0, packageRemaining: 0, monthlyLimit: 0, monthlyRemaining: 0, monthlyRenewalDay: 1 }); setModalOpen(true) };
+  const openEdit = (u) => { setEditing(u); setForm({ name:u.name, email:u.email, password:'', role:u.role, active: u.active ?? true, isBlocked: u.isBlocked ?? u.blocked ?? false, cpfCnpj: u.cpfCnpj ?? '', telefone: u.telefone ?? '', adesao: u.adesao, activeUpdatedAt: u.activeUpdatedAt, dailySearchLimit: u.dailySearchLimit ?? 100, quotaType: u.quotaType || 'DAILY', packageLimit: u.packageLimit || 0, packageRemaining: u.packageRemaining || 0, monthlyLimit: u.monthlyLimit || 0, monthlyRemaining: u.monthlyRemaining || 0, monthlyRenewalDay: u.monthlyRenewalDay || 1 }); setModalOpen(true) };
 
   const save = async () => {
     setSaving(true);
@@ -342,6 +342,11 @@ export default function UsersCrud(){
       if (form.quotaType === 'PACKAGE') {
         payloadBase.packageLimit = Number(form.packageLimit || 0);
         payloadBase.packageRemaining = Number(form.packageRemaining || form.packageLimit || 0);
+      }
+      if (form.quotaType === 'MONTHLY') {
+        payloadBase.monthlyLimit = Number(form.monthlyLimit || 0);
+        payloadBase.monthlyRemaining = Number(form.monthlyRemaining || form.monthlyLimit || 0);
+        payloadBase.monthlyRenewalDay = Number(form.monthlyRenewalDay || 1);
       }
 
       if(editing){
@@ -451,8 +456,15 @@ export default function UsersCrud(){
                   <Td>{u.email}</Td>
                   <Td>{u.cpfCnpj || '-'}</Td>
                   <Td>{u.telefone || '-'}</Td>
-                  <Td>{u.quotaType === 'PACKAGE' ? `Pacote ${u.packageLimit || 0}` : (typeof u.dailySearchLimit !== 'undefined' ? `Diário ${u.dailySearchLimit}` : '-')}</Td>
+                  <Td>{
+                    u.quotaType === 'MONTHLY' ? `Mensal ${u.monthlyLimit || 0}` :
+                    u.quotaType === 'PACKAGE' ? `Pacote ${u.packageLimit || 0}` : 
+                    (typeof u.dailySearchLimit !== 'undefined' ? `Diário ${u.dailySearchLimit}` : '-')
+                  }</Td>
                   <Td>{(() => {
+                    if (u.quotaType === 'MONTHLY') {
+                      return String(Number(u.monthlyRemaining || 0));
+                    }
                     if (u.quotaType === 'PACKAGE') {
                       return String(Number(u.packageRemaining || 0));
                     }
@@ -519,6 +531,7 @@ export default function UsersCrud(){
               <Select value={form.quotaType || 'DAILY'} onChange={e => setForm({ ...form, quotaType: e.target.value })}>
                 <option value="DAILY">Diária</option>
                 <option value="PACKAGE">Pacote</option>
+                <option value="MONTHLY">Mensal</option>
               </Select>
             </Field>
             {form.quotaType === 'DAILY' && (
@@ -541,6 +554,27 @@ export default function UsersCrud(){
                 <Field>
                   <label>Consultas restantes no pacote</label>
                   <Input type="number" min={0} value={form.packageRemaining ?? 0} onChange={e => setForm({ ...form, packageRemaining: Number(e.target.value || 0) })} />
+                </Field>
+              </>
+            )}
+            {form.quotaType === 'MONTHLY' && (
+              <>
+                <Field>
+                  <label>Limite mensal de buscas</label>
+                  <Input type="number" min={0} value={form.monthlyLimit ?? 0} onChange={e => {
+                    const v = Number(e.target.value || 0);
+                    // when creating a new user (not editing), keep monthlyRemaining in sync with monthlyLimit
+                    if (!editing) setForm({ ...form, monthlyLimit: v, monthlyRemaining: v });
+                    else setForm({ ...form, monthlyLimit: v });
+                  }} />
+                </Field>
+                <Field>
+                  <label>Consultas restantes no mês</label>
+                  <Input type="number" min={0} value={form.monthlyRemaining ?? 0} onChange={e => setForm({ ...form, monthlyRemaining: Number(e.target.value || 0) })} />
+                </Field>
+                <Field>
+                  <label>Dia de renovação mensal (1-31)</label>
+                  <Input type="number" min={1} max={31} value={form.monthlyRenewalDay ?? 1} onChange={e => setForm({ ...form, monthlyRenewalDay: Number(e.target.value || 1) })} />
                 </Field>
               </>
             )}
